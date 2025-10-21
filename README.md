@@ -46,7 +46,7 @@ Originally built for the **Purrfect Universe**, it is now released by **Purrfect
 
 ## 🧰 Tech Stack
 
-- **Node.js ≥ 22** (manage via [NVM](https://github.com/nvm-sh/nvm))  
+- **Node.js ≥ 22** (manage via [NVM](https://github.com/nvm-sh/nvm))
 ```bash
 nvm use
 ````
@@ -92,7 +92,7 @@ UNIVERSE_WEBHOOK_SECRET=change_me
 
 # Behavior
 REDACT_PII=true
-OPT_OUT_KEYWORD=#noai
+OPT_OUT_KEYWORD="#noai"
 MAX_CONTEXT_MESSAGES=500
 DATA_DIR=./data
 ```
