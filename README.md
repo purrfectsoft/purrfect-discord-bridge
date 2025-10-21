@@ -47,10 +47,9 @@ Originally built for the **Purrfect Universe**, it is now released by **Purrfect
 ## 🧰 Tech Stack
 
 - **Node.js ≥ 22** (manage via [NVM](https://github.com/nvm-sh/nvm))  
-  ```bash
-  nvm use
+```bash
+nvm use
 ````
-
 * **discord.js v14**
 * **OpenAI API v4**
 * **cron + luxon** for scheduling and time zones
