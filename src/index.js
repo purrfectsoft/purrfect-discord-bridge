@@ -11,6 +11,7 @@ import { windowHoursEnd } from "./utils/time.js";
 import { ensureNotesDir, addNote, getNotesBetween } from "./notes.js";
 import { startWebhookServer } from "./webhook.js";
 import { getHappenings } from "./happenings.js";
+import { startStatusServer } from "./status_server.js";
 
 const tz = process.env.TIMEZONE || "Asia/Dhaka";
 const allowed = new Set((process.env.DISCORD_ALLOWED_CHANNEL_IDS || "").split(",").map(s => s.trim()).filter(Boolean));
@@ -356,5 +357,47 @@ startWebhookServer({
   isAllowedChannel: (id) => allowed.has(id),
   defaultChannelId: process.env.DISCORD_SUMMARY_CHANNEL_ID
 });
+
+
+// ── status dashboard (HTML on STATUS_PORT, JSON at /health.json) ─────────────
+startStatusServer({
+  port: parseInt(process.env.STATUS_PORT || "3000", 10),
+  getState: async () => {
+    const now = Date.now();
+    const { start: s24, end: e24 } = windowHoursEnd(tz, 24);
+    const { start: s7d, end: e7d } = windowHoursEnd(tz, 24 * 7);
+    const channels = [];
+
+    for (const chId of Array.from(allowed)) {
+      let name = chId;
+      try {
+        const ch = await client.channels.fetch(chId);
+        name = ch?.name || chId;
+      } catch {}
+      const c24 = loadWindow({ channelId: chId, sinceISO: s24.toISO(), untilISO: e24.toISO() }).length;
+      const c7d = loadWindow({ channelId: chId, sinceISO: s7d.toISO(), untilISO: e7d.toISO() }).length;
+      channels.push({ id: chId, name, count24h: c24, count7d: c7d });
+    }
+
+    return {
+      tz,
+      ready: client.isReady(),
+      botTag: client.user?.tag || null,
+      uptimeMs: Math.floor(process.uptime() * 1000),
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      dailyCron: process.env.DAILY_SUMMARY_CRON || "0 21 * * *",
+      lastDigestAt: null,
+      autosummary: {
+        enabled: String(process.env.AUTOSUMMARY_ENABLED || "false").toLowerCase() === "true",
+        cron: process.env.AUTOSUMMARY_INTERVAL_CRON || "*/30 * * * *",
+        min: parseInt(process.env.AUTOSUMMARY_MIN_MESSAGES || "25", 10),
+        lookback: parseInt(process.env.AUTOSUMMARY_LOOKBACK_HOURS || "6", 10)
+      },
+      channels,
+      errors: []
+    };
+  }
+});
+
 
 client.login(process.env.DISCORD_TOKEN);
