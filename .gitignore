@@ -1,0 +1,63 @@
+# ──────────────────────────────
+# Node & Package Management
+# ──────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+yarn.lock
+
+# ──────────────────────────────
+# Environment & Local Config
+# ──────────────────────────────
+.env
+.env.*
+!.env.example   # keep template in repo
+.nvmrc
+
+# ──────────────────────────────
+# Runtime & Data Files
+# ──────────────────────────────
+data/logs/
+data/keyhappenings.json
+data/notes/
+*.sqlite
+*.db
+
+# ──────────────────────────────
+# System / Editor / OS
+# ──────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.tmp
+*.bak
+
+# ──────────────────────────────
+# Build Artifacts / Generated Docs
+# ──────────────────────────────
+*.log
+*.pid
+docs/**/*.pdf
+docs/**/*.docx
+docs/**/*.zip
+dist/
+build/
+coverage/
+
+# ──────────────────────────────
+# Test / Playground
+# ──────────────────────────────
+test.js
+playground/
+sandbox/
+scratch.*
+
+# ──────────────────────────────
+# Miscellaneous Safety Nets
+# ──────────────────────────────
+# Exclude any local JSONs generated at runtime
+data/*.json
+!data/.keep
