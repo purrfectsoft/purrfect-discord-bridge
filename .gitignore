@@ -16,11 +16,13 @@ yarn-error.log*
 # ──────────────────────────────
 # Runtime & Data Files
 # ──────────────────────────────
-data/logs/
+data/logs/*
+!data/logs/.gitkeep
+
+data/notes/*
+!data/notes/.gitkeep
+
 data/keyhappenings.json
-data/notes/
-*.sqlite
-*.db
 
 # ──────────────────────────────
 # System / Editor / OS
