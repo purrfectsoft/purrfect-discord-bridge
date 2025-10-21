@@ -9,9 +9,8 @@ import { ensureDirs, appendMessage, loadWindow } from "./storage.js";
 import { redact, shouldSkip } from "./redact.js";
 import { windowHoursEnd } from "./utils/time.js";
 import { ensureNotesDir, addNote, getNotesBetween } from "./notes.js";
-import { startWebhookServer } from "./webhook.js";
 import { getHappenings } from "./happenings.js";
-import { startStatusServer } from "./status_server.js";
+import { startServer } from "./server.js";
 
 const tz = process.env.TIMEZONE || "Asia/Dhaka";
 const allowed = new Set((process.env.DISCORD_ALLOWED_CHANNEL_IDS || "").split(",").map(s => s.trim()).filter(Boolean));
@@ -348,20 +347,16 @@ if (autosummaryEnabled) {
   console.log(`⚡ Auto-summary enabled: cron="${autosummaryCron}", min=${autosummaryMin}, lookback=${autosummaryLookbackHrs}h`);
 }
 
-// Webhook server (if you set WEBHOOK_* envs and added webhook.js earlier)
-startWebhookServer({
-  port: parseInt(process.env.WEBHOOK_PORT || "3080", 10),
+// ✅ Unified single-port server (dashboard + webhooks)
+startServer({
+  port: parseInt(process.env.SERVER_PORT || process.env.STATUS_PORT || "3000", 10),
+  host: process.env.SERVER_HOST || "127.0.0.1",
+  canonicalBaseUrl: process.env.CANONICAL_BASE_URL || "",
   secret: process.env.UNIVERSE_WEBHOOK_SECRET,
-  onNote: async (n) => addNote(n),
+  onNote: async (n) => addNote(n),            // dashboard forms feed into notes/happenings sections
   onDigest: async () => runDigestOnce(),
   isAllowedChannel: (id) => allowed.has(id),
-  defaultChannelId: process.env.DISCORD_SUMMARY_CHANNEL_ID
-});
-
-
-// ── status dashboard (HTML on STATUS_PORT, JSON at /health.json) ─────────────
-startStatusServer({
-  port: parseInt(process.env.STATUS_PORT || "3000", 10),
+  defaultChannelId: process.env.DISCORD_SUMMARY_CHANNEL_ID,
   getState: async () => {
     const now = Date.now();
     const { start: s24, end: e24 } = windowHoursEnd(tz, 24);
@@ -381,23 +376,22 @@ startStatusServer({
 
     return {
       tz,
-      ready: client.isReady(),
-      botTag: client.user?.tag || null,
-      uptimeMs: Math.floor(process.uptime() * 1000),
+      ready: statusState.ready,
+      botTag: statusState.botTag,
+      uptimeMs: now - statusState.startedAt,
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       dailyCron: process.env.DAILY_SUMMARY_CRON || "0 21 * * *",
-      lastDigestAt: null,
+      lastDigestAt: statusState.lastDigestAt,
       autosummary: {
-        enabled: String(process.env.AUTOSUMMARY_ENABLED || "false").toLowerCase() === "true",
-        cron: process.env.AUTOSUMMARY_INTERVAL_CRON || "*/30 * * * *",
-        min: parseInt(process.env.AUTOSUMMARY_MIN_MESSAGES || "25", 10),
-        lookback: parseInt(process.env.AUTOSUMMARY_LOOKBACK_HOURS || "6", 10)
+        enabled: autosummaryEnabled,
+        cron: autosummaryCron,
+        min: autosummaryMin,
+        lookback: autosummaryLookbackHrs
       },
       channels,
-      errors: []
+      errors: statusState.errors.slice(-50)
     };
   }
 });
-
 
 client.login(process.env.DISCORD_TOKEN);

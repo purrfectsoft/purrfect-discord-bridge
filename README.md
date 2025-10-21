@@ -110,7 +110,7 @@ src/
 ├─ webhook.js          # Minimal POST API (note, happening, digest)
 ├─ happenings.js       # Persistent "Key Happenings" from chat/webhook
 ├─ notes.js            # Manual notes subsystem
-├─ status_server.js    # HTML dashboard + /health.json
+├─ server.js    # HTML dashboard + /health.json
 ├─ commands.js         # Slash command registration
 └─ utils/time.js       # Timezone helpers
 ```
