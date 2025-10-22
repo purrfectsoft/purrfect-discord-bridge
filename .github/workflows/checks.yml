@@ -51,4 +51,5 @@ jobs:
       - name: Run Biome Format Check
         run: yarn format
       - name: Run TypeScript Compiler (TSC)
-        run: yarn type-check
+        run: yarn typecheck
+        
