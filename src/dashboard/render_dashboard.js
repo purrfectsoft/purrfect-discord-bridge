@@ -223,9 +223,10 @@ export function render_dashboard(state, options = {}) {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Purrfect Universe — Bridge</title>
-  <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-zMeW/9P1uABPwIwp4KiWknK5UNvdnMFiD0GWY2yRA82CqSVdyCjBbhbIN4KdPqLf" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
   <script>
-  tailwind.config = {
+  window.tailwind = window.tailwind || {};
+  window.tailwind.config = {
     theme: {
       extend: {
         colors: {
@@ -245,8 +246,7 @@ export function render_dashboard(state, options = {}) {
           }
         }
       }
-    },
-    plugins: [tailwindcssForms, tailwindcssTypography]
+    }
   };
   </script>
   <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
