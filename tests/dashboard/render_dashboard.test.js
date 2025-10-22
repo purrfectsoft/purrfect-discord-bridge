@@ -15,7 +15,7 @@ test("render_runtime_card includes Tailwind classes", () => {
     tz: "UTC"
   });
   assert.ok(html.includes("bg-slate-900/80"));
-  assert.ok(html.includes("text-brand-emerald-400"));
+  assert.ok(html.includes("text-brand-emerald-300"));
 });
 
 test("render_channel_grid handles channels", () => {
