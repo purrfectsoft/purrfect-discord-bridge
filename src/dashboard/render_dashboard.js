@@ -24,45 +24,48 @@ function esc(s = "") {
 
 export function render_runtime_card(st) {
   return `
-    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg shadow-black/20 space-y-4">
-      <h2 class="text-lg font-semibold text-slate-100">Runtime</h2>
-      <dl class="grid grid-cols-2 gap-4 text-sm text-slate-300">
-        <div>
-          <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Bot</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-100">${esc(st.botTag || "—")}</dd>
+    <div class="relative overflow-hidden rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/25">
+      <div class="pointer-events-none absolute inset-x-8 -top-24 h-44 rounded-full bg-gradient-to-br from-brand-emerald-500/20 via-brand-sky-500/10 to-transparent blur-3xl"></div>
+      <div class="relative space-y-6">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <h2 class="text-lg font-semibold text-slate-100">Runtime</h2>
+          <span class="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/80 px-3 py-1 text-xs font-semibold ${st.ready ? "text-brand-emerald-300" : "text-rose-300"}">
+            <span class="h-2 w-2 rounded-full ${st.ready ? "bg-brand-emerald-400" : "bg-rose-400"}"></span>
+            ${st.ready ? "Online" : "Offline"}
+          </span>
         </div>
-        <div>
-          <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Status</dt>
-          <dd class="mt-1 text-base font-semibold ${st.ready ? "text-brand-emerald-400" : "text-rose-400"}">${st.ready ? "Online" : "Offline"}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Uptime</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-100">${human(st.uptimeMs)}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Model</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-100">${esc(st.model || "—")}</dd>
-        </div>
-      </dl>
-      <div class="border-t border-slate-800 pt-4">
-        <dl class="grid grid-cols-2 gap-4 text-sm text-slate-300">
-          <div>
-            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Daily Cron</dt>
-            <dd class="mt-1 text-base font-semibold text-slate-100">${esc(st.dailyCron || "—")}</dd>
+        <dl class="grid grid-cols-1 gap-4 text-sm text-slate-300 sm:grid-cols-2">
+          <div class="space-y-1">
+            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Bot</dt>
+            <dd class="text-base font-semibold text-slate-100">${esc(st.botTag || "—")}</dd>
           </div>
-          <div>
+          <div class="space-y-1">
+            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Model</dt>
+            <dd class="text-base font-semibold text-slate-100">${esc(st.model || "—")}</dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Uptime</dt>
+            <dd class="text-base font-semibold text-slate-100">${human(st.uptimeMs)}</dd>
+          </div>
+          <div class="space-y-1">
             <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Last Digest</dt>
-            <dd class="mt-1 text-base font-semibold text-slate-100">${st.lastDigestAt ? new Date(st.lastDigestAt).toLocaleString("en-GB", { hour12: false, timeZone: st.tz }) : "—"}</dd>
-          </div>
-          <div>
-            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Autosummary</dt>
-            <dd class="mt-1 text-base font-semibold text-slate-100">${st.autosummary?.enabled ? "Enabled" : "Disabled"}</dd>
-          </div>
-          <div>
-            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Auto Config</dt>
-            <dd class="mt-1 text-base font-semibold text-slate-100">${esc(st.autosummary?.cron || "—")} / ${st.autosummary?.min ?? "—"} msgs / ${st.autosummary?.lookback ?? "—"}h</dd>
+            <dd class="text-base font-semibold text-slate-100">${st.lastDigestAt ? new Date(st.lastDigestAt).toLocaleString("en-GB", { hour12: false, timeZone: st.tz }) : "—"}</dd>
           </div>
         </dl>
+        <div class="grid grid-cols-1 gap-4 border-t border-slate-800/80 pt-4 text-sm text-slate-300 sm:grid-cols-2">
+          <div class="space-y-1">
+            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Daily Cron</dt>
+            <dd class="text-base font-semibold text-slate-100">${esc(st.dailyCron || "—")}</dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Autosummary</dt>
+            <dd class="text-base font-semibold text-slate-100">${st.autosummary?.enabled ? "Enabled" : "Disabled"}</dd>
+          </div>
+          <div class="space-y-1 sm:col-span-2">
+            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Auto Config</dt>
+            <dd class="text-base font-semibold text-slate-100">${esc(st.autosummary?.cron || "—")} • ${st.autosummary?.min ?? "—"} msgs • ${st.autosummary?.lookback ?? "—"}h</dd>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -70,26 +73,27 @@ export function render_runtime_card(st) {
 
 export function render_allowlist_card(st, { canonicalBaseUrl } = {}) {
   return `
-    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg shadow-black/20 space-y-4">
-      <h2 class="text-lg font-semibold text-slate-100">Allowlisted Channels</h2>
-      <dl class="grid grid-cols-2 gap-4 text-sm text-slate-300">
-        <div>
-          <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Count</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-100">${st.channels.length}</dd>
+    <div class="rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/25">
+      <div class="space-y-6">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <h2 class="text-lg font-semibold text-slate-100">Allowlisted Channels</h2>
+          <span class="inline-flex items-center rounded-full bg-slate-800/80 px-3 py-1 text-[11px] font-medium text-slate-300">${st.channels.length} total</span>
         </div>
-        <div>
-          <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Msgs (24h total)</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-100">${st.channels.reduce((a, c) => a + (c.count24h || 0), 0)}</dd>
-        </div>
-      </dl>
-      <div class="border-t border-slate-800 pt-4 space-y-3 text-sm text-slate-300">
-        <div>
+        <dl class="grid grid-cols-1 gap-4 text-sm text-slate-300 sm:grid-cols-2">
+          <div class="space-y-1">
+            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Msgs (24h total)</dt>
+            <dd class="text-base font-semibold text-slate-100">${st.channels.reduce((a, c) => a + (c.count24h || 0), 0)}</dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Canonical</dt>
+            <dd class="text-base font-semibold text-slate-100">${esc(canonicalBaseUrl || "—")}</dd>
+          </div>
+        </dl>
+        <div class="rounded-2xl border border-slate-800/60 bg-slate-900/70 p-4 text-sm text-slate-300">
           <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">IDs</dt>
-          <dd class="mt-1 font-mono text-sm text-slate-400">${esc(st.channels.map(c => c.id).join(", ") || "—")}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Canonical</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-100">${esc(canonicalBaseUrl || "—")}</dd>
+          <dd class="mt-2 space-y-1 font-mono text-xs leading-relaxed text-slate-400">
+            ${esc(st.channels.map(c => c.id).join("\n") || "—").replaceAll("\n", "<br/>")}
+          </dd>
         </div>
       </div>
     </div>
@@ -101,57 +105,60 @@ export function render_channel_grid(channels) {
     return `<div class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-8 text-center text-slate-400">No channels</div>`;
   }
   const cards = channels.map(ch => `
-    <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow shadow-black/10">
-      <div class="flex items-center justify-between">
-        <span class="inline-flex items-center rounded-full bg-slate-800/80 px-3 py-1 text-xs font-medium text-slate-200">#${esc(ch.name || ch.id)}</span>
-        <span class="text-[11px] font-mono text-slate-500">${esc(ch.id)}</span>
+    <div class="flex h-full flex-col rounded-3xl border border-slate-800/60 bg-slate-900/70 p-5 shadow-lg shadow-black/20">
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="max-w-full shrink min-w-0 truncate rounded-full bg-slate-800/80 px-3 py-1 text-sm font-medium text-slate-100">#${esc(ch.name || ch.id)}</span>
+        <span class="shrink-0 rounded-full bg-slate-950/80 px-2.5 py-1 text-[11px] font-mono text-slate-400">${esc(ch.id)}</span>
       </div>
-      <dl class="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-300">
-        <div>
+      <dl class="mt-5 grid grid-cols-2 gap-4 text-sm text-slate-300">
+        <div class="space-y-1">
           <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Msgs (24h)</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-100">${ch.count24h ?? "—"}</dd>
+          <dd class="text-base font-semibold text-slate-100">${ch.count24h ?? "—"}</dd>
         </div>
-        <div>
+        <div class="space-y-1">
           <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Msgs (7d)</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-100">${ch.count7d ?? "—"}</dd>
+          <dd class="text-base font-semibold text-slate-100">${ch.count7d ?? "—"}</dd>
         </div>
       </dl>
     </div>
   `).join("");
-  return `<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">${cards}</div>`;
+  return `<div class="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">${cards}</div>`;
 }
 
 export function render_forms({ defaultChannelId } = {}) {
   const happeningPlaceholder = esc(process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings");
   return `
-    <div id="forms" class="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20 space-y-6">
+    <div id="forms" class="rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/20 space-y-8">
       <div id="formFlash" class="text-sm text-slate-400" role="status" aria-live="polite"></div>
       <form method="post" action="/note" hx-post="/note" hx-target="#formFlash" hx-swap="innerHTML" hx-on::after-request="if (event.detail.successful) this.reset()" class="grid gap-3">
+        <p class="text-sm text-slate-400">Capture quick notes straight into the digest stream.</p>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret <small class="ml-1 text-[11px] font-normal normal-case text-slate-500">Use your UNIVERSE_WEBHOOK_SECRET</small></label>
-        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
+        <input name="secret" type="password" placeholder="••••••••" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Channel ID <small class="ml-1 text-[11px] font-normal normal-case text-slate-500">Defaults to summary channel if empty</small></label>
-        <input name="channelId" placeholder="${esc(defaultChannelId || "")}" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
+        <input name="channelId" placeholder="${esc(defaultChannelId || "")}" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Section</label>
-        <input name="section" placeholder="Manual Notes" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
+        <input name="section" placeholder="Manual Notes" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Text</label>
-        <textarea name="text" rows="3" placeholder="What should be noted?" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"></textarea>
-        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-sky-500/30 transition hover:bg-brand-sky-400 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/60">Post /note</button>
+        <textarea name="text" rows="3" placeholder="What should be noted?" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"></textarea>
+        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-2xl bg-brand-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-sky-500/30 transition hover:bg-brand-sky-400 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/60">Post /note</button>
       </form>
       <hr class="border-slate-800"/>
       <form method="post" action="/happening" hx-post="/happening" hx-target="#formFlash" hx-swap="innerHTML" hx-on::after-request="if (event.detail.successful) this.reset()" class="grid gap-3">
+        <p class="text-sm text-slate-400">Highlight noteworthy updates for the automated digest.</p>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret</label>
-        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
+        <input name="secret" type="password" placeholder="••••••••" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-purple-500 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Section</label>
-        <input name="section" placeholder="${happeningPlaceholder}" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
+        <input name="section" placeholder="${happeningPlaceholder}" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-purple-500 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Text</label>
-        <textarea name="text" rows="3" placeholder="Key happening to surface in digests" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"></textarea>
-        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-purple-500/30 transition hover:bg-brand-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/60">Post /happening</button>
+        <textarea name="text" rows="3" placeholder="Key happening to surface in digests" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-purple-500 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/40"></textarea>
+        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-2xl bg-brand-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-purple-500/30 transition hover:bg-brand-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/60">Post /happening</button>
       </form>
       <hr class="border-slate-800"/>
       <form method="post" action="/digest" hx-post="/digest" hx-target="#formFlash" hx-swap="innerHTML" hx-on::after-request="if (event.detail.successful) this.reset()" class="grid gap-3">
+        <p class="text-sm text-slate-400">Manually kick off a digest run when you need it.</p>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret</label>
-        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
-        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-emerald-500/30 transition hover:bg-brand-emerald-400 focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/60">Trigger /digest now</button>
+        <input name="secret" type="password" placeholder="••••••••" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-emerald-500 focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/40"/>
+        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-2xl bg-brand-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-emerald-500/30 transition hover:bg-brand-emerald-400 focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/60">Trigger /digest now</button>
       </form>
     </div>
   `;
@@ -168,28 +175,39 @@ export function render_metrics(state, options = {}) {
   const nowStr = new Date().toLocaleString("en-GB", { hour12: false, timeZone: state.tz });
   return `
     <div id="metrics" hx-get="/metrics" hx-trigger="load, every 30s" hx-target="#metrics" hx-swap="outerHTML">
-      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 class="text-2xl font-semibold text-slate-100">🐾 Purrfect Bridge — Dashboard</h1>
-        <div class="flex flex-wrap items-center gap-3">
-          <span class="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2 text-xs font-medium text-slate-200">
-            ${esc(state.tz)} • <span class="text-[11px] text-slate-400">${nowStr}</span>
-          </span>
+      <header class="relative overflow-hidden rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-900/90 via-slate-950 to-slate-950/90 p-6 sm:p-8 shadow-xl shadow-black/30">
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.15),transparent_45%)]"></div>
+        <div class="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div class="space-y-2 text-balance">
+            <h1 class="text-2xl font-semibold text-slate-100 sm:text-3xl">🐾 Purrfect Bridge</h1>
+            <p class="text-sm text-slate-400 sm:text-base">Realtime visibility into summaries, happenings, and bridge health.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/70 px-4 py-2 text-xs font-medium text-slate-200">
+              <span class="rounded-full bg-slate-800/80 px-2 py-1 text-[11px] font-semibold text-slate-300">${esc(state.tz)}</span>
+              <span class="text-[11px] text-slate-400">${nowStr}</span>
+            </span>
+            <span class="inline-flex items-center gap-2 rounded-full bg-slate-900/70 px-4 py-2 text-xs text-slate-300">
+              <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-sky-500"></span>
+              Live refresh every 30s
+            </span>
+          </div>
         </div>
       </header>
 
-      <section class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <section class="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         ${render_runtime_card(state)}
         ${render_allowlist_card(state, { canonicalBaseUrl })}
       </section>
 
-      <section class="mt-10 space-y-4">
+      <section class="mt-12 space-y-5">
         <h2 class="text-lg font-semibold text-slate-100">Channel Activity</h2>
         ${render_channel_grid(state.channels)}
       </section>
 
-      <section class="mt-10 space-y-4">
+      <section class="mt-12 space-y-5">
         <h2 class="text-lg font-semibold text-slate-100">Recent Errors</h2>
-        <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20">
+        <div class="rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/20">
           ${render_errors(state.errors)}
         </div>
       </section>
@@ -234,7 +252,8 @@ export function render_dashboard(state, options = {}) {
   <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100">
-  <div class="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-10">
+  <div class="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.08),transparent_55%)]"></div>
+  <div class="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12 sm:px-8">
     ${render_metrics(state, { canonicalBaseUrl })}
 
     <section class="space-y-4">
@@ -242,9 +261,9 @@ export function render_dashboard(state, options = {}) {
       ${render_forms({ defaultChannelId })}
     </section>
 
-    <footer class="pt-4 text-xs text-slate-500">
-      Live metrics refresh every 30s
-      • <a href="/health.json" class="text-slate-400 underline hover:text-slate-200">/health.json</a>
+    <footer class="pt-6 text-xs text-slate-500">
+      Refreshed live every 30s
+      • <a href="/health.json" class="text-slate-400 underline decoration-dotted underline-offset-4 hover:text-slate-200">/health.json</a>
       • Canonical: ${esc(canonicalBaseUrl || "—")}
     </footer>
   </div>
