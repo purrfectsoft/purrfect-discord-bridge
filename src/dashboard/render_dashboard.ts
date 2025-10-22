@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs";
 
 import type {
-        DashboardOptions,
-        DashboardState,
-        MetricsOptions,
+	DashboardOptions,
+	DashboardState,
+	MetricsOptions,
 } from "../types.js";
 
 const dashboardTemplate = readFileSync(
-	new URL("./dashboard.html", import.meta.url),
+	new URL("../../static/dashboard.html", import.meta.url),
 	"utf8",
 );
 
@@ -35,9 +35,9 @@ function esc(value: unknown = ""): string {
 }
 
 function canonicalMarkup(url?: string | null): string {
-        if (!url) return "—";
-        const safe = esc(url);
-        return `<a href="${safe}" class="break-all text-slate-200 underline decoration-dotted underline-offset-4 transition hover:text-slate-100" target="_blank" rel="noreferrer noopener">${safe}</a>`;
+	if (!url) return "—";
+	const safe = esc(url);
+	return `<a href="${safe}" class="break-all text-slate-200 underline decoration-dotted underline-offset-4 transition hover:text-slate-100" target="_blank" rel="noreferrer noopener">${safe}</a>`;
 }
 
 export function render_runtime_card(st: DashboardState): string {
@@ -167,7 +167,7 @@ export function render_channel_grid(
 }
 
 export function render_forms({
-        defaultChannelId,
+	defaultChannelId,
 }: DashboardOptions = {}): string {
 	const happeningPlaceholder = esc(
 		process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings",
@@ -241,25 +241,28 @@ export function render_forms({
 }
 
 export function render_errors(errors?: string[] | null): string {
-        const items = (errors || [])
-                .slice(-5)
-                .reverse()
-                .map((error) => `<li class="font-mono text-xs text-rose-300/90"><code>${esc(error)}</code></li>`)
-                .join("")
-                || '<li class="text-xs text-slate-500">No recent errors</li>';
-        return `<ul class="space-y-2">${items}</ul>`;
+	const items =
+		(errors || [])
+			.slice(-5)
+			.reverse()
+			.map(
+				(error) =>
+					`<li class="font-mono text-xs text-rose-300/90"><code>${esc(error)}</code></li>`,
+			)
+			.join("") || '<li class="text-xs text-slate-500">No recent errors</li>';
+	return `<ul class="space-y-2">${items}</ul>`;
 }
 
 export function render_metrics(
-        state: DashboardState,
-        options: MetricsOptions = {},
+	state: DashboardState,
+	options: MetricsOptions = {},
 ): string {
-        const { canonicalBaseUrl = "" } = options;
-        const nowStr = new Date().toLocaleString("en-GB", {
-                hour12: false,
-                timeZone: state.tz,
-        });
-        return `
+	const { canonicalBaseUrl = "" } = options;
+	const nowStr = new Date().toLocaleString("en-GB", {
+		hour12: false,
+		timeZone: state.tz,
+	});
+	return `
     <div id="metrics" hx-get="/metrics" hx-trigger="load, every 30s" hx-target="#metrics" hx-swap="outerHTML">
       <header class="relative overflow-hidden rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-900/90 via-slate-950 to-slate-950/90 p-6 sm:p-8 shadow-xl shadow-black/30">
         <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.15),transparent_45%)]"></div>
@@ -302,16 +305,16 @@ export function render_metrics(
 }
 
 export default function render_dashboard(
-        state: DashboardState,
-        options: DashboardOptions = {},
+	state: DashboardState,
+	options: DashboardOptions = {},
 ): string {
-        const { canonicalBaseUrl = "", defaultChannelId = "" } = options;
-        const metricsHtml = render_metrics(state, { canonicalBaseUrl });
-        const formsHtml = render_forms({ defaultChannelId });
-        const canonical = canonicalMarkup(canonicalBaseUrl);
+	const { canonicalBaseUrl = "", defaultChannelId = "" } = options;
+	const metricsHtml = render_metrics(state, { canonicalBaseUrl });
+	const formsHtml = render_forms({ defaultChannelId });
+	const canonical = canonicalMarkup(canonicalBaseUrl);
 
-        return dashboardTemplate
-                .replace("<!--METRICS-->", metricsHtml)
-                .replace("<!--FORMS-->", formsHtml)
-                .replace("<!--CANONICAL-->", canonical);
+	return dashboardTemplate
+		.replace("<!--METRICS-->", metricsHtml)
+		.replace("<!--FORMS-->", formsHtml)
+		.replace("<!--CANONICAL-->", canonical);
 }
