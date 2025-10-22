@@ -50,10 +50,12 @@ Originally built for the **Purrfect Universe**, it is now released by **Purrfect
 ```bash
 nvm use
 ````
+* **TypeScript** (compiled via `tsc` → `dist/`)
 * **discord.js v14**
 * **OpenAI API v4**
 * **cron + luxon** for scheduling and time zones
 * **Native HTTP** (no Express) for webhooks and dashboard
+* **Biome** for linting & formatting
 
 ---
 
@@ -108,17 +110,17 @@ KEYHAPPENINGS_SECTION_NAME=Key Happenings
 
 ```
 src/
-├─ index.js            # Main entry, Discord client, cron jobs
-├─ summarizer.js       # OpenAI summarization (no hallucination policy)
-├─ storage.js          # JSON log storage (append/load window)
-├─ redact.js           # PII and #noai filtering
-├─ webhook.js          # Minimal POST API (note, happening, digest)
-├─ happenings.js       # Persistent "Key Happenings" from chat/webhook
-├─ notes.js            # Manual notes subsystem
-├─ server.js           # Unified dashboard + HTMX forms + /health.json
+├─ index.ts            # Main entry, Discord client, cron jobs
+├─ summarizer.ts       # OpenAI summarization (no hallucination policy)
+├─ storage.ts          # JSON log storage (append/load window)
+├─ redact.ts           # PII and #noai filtering
+├─ happenings.ts       # Persistent "Key Happenings" from chat/webhook
+├─ notes.ts            # Manual notes subsystem
+├─ server.ts           # Unified dashboard + HTMX forms + /health.json
 ├─ dashboard/          # Tailwind HTML template + renderer helpers
-├─ commands.js         # Slash command registration
-└─ utils/time.js       # Timezone helpers
+├─ commands.ts         # Slash command registration
+├─ types.ts            # Shared interfaces
+└─ utils/time.ts       # Timezone helpers
 ```
 
 ---
@@ -146,6 +148,8 @@ cd purrfect-discord-bridge
 yarn install
 ```
 
+> ℹ️ This project now compiles from TypeScript. Run `yarn build` whenever you need the latest JavaScript output in `dist/` (for example before `yarn start`).
+
 ### 2️⃣ Register Slash Commands
 
 ```bash
@@ -155,13 +159,23 @@ yarn register-commands
 ### 3️⃣ Run Locally
 
 ```bash
-yarn dev
-# or
+yarn dev              # TSX watcher for local development
+# or, build then run the compiled output
+yarn build
 yarn start
 ```
 
 Visit **[http://localhost:3000](http://localhost:3000)** for the dashboard
 and **[http://localhost:3000/health.json](http://localhost:3000/health.json)** for machine-readable status.
+
+### 4️⃣ Developer Tooling
+
+```bash
+yarn typecheck        # Strict TypeScript checks
+yarn lint             # Biome lint (use `yarn lint:fix` to auto-fix)
+yarn format           # Biome formatter
+yarn test             # Node test runner via TSX
+```
 
 ---
 
