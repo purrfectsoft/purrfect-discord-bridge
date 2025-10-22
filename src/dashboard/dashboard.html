@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Purrfect Universe — Bridge</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+  <script>
+  window.tailwind = window.tailwind || {};
+  window.tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            sky: {
+              400: "#38bdf8",
+              500: "#0ea5e9"
+            },
+            purple: {
+              400: "#c084fc",
+              500: "#a855f7"
+            },
+            emerald: {
+              400: "#34d399",
+              500: "#10b981"
+            }
+          }
+        }
+      }
+    }
+  };
+  </script>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <style>
+    #toastHost {
+      pointer-events: none;
+    }
+    #toastHost .toast {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    #toastHost .toast[data-show="true"] {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <div class="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.08),transparent_55%)]"></div>
+  <div class="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12 sm:px-8">
+    <!--METRICS-->
+
+    <section class="space-y-4">
+      <h2 class="text-lg font-semibold text-slate-100">Post from Dashboard</h2>
+      <!--FORMS-->
+    </section>
+
+    <footer class="pt-6 text-xs text-slate-500">
+      Refreshed live every 30s
+      • <a href="/health.json" class="text-slate-400 underline decoration-dotted underline-offset-4 hover:text-slate-200">/health.json</a>
+      • Canonical: <!--CANONICAL-->
+    </footer>
+  </div>
+  <div id="toastHost" class="pointer-events-none fixed bottom-6 right-6 z-50 flex max-w-full flex-col gap-3"></div>
+  <script>
+  (() => {
+    const host = document.getElementById("toastHost");
+    if (!host) return;
+
+    const baseClass = "toast pointer-events-auto rounded-2xl border border-slate-800/80 bg-slate-950/90 px-4 py-3 text-sm text-slate-200 shadow-2xl shadow-black/40 backdrop-blur";
+    const variants = {
+      success: "border-brand-emerald-500/60 text-brand-emerald-100",
+      error: "border-rose-500/70 text-rose-200",
+      info: "border-slate-700/70"
+    };
+
+    function makeToast(message, variant = "info") {
+      const toast = document.createElement("div");
+      toast.className = `${baseClass} ${variants[variant] || variants.info}`;
+      toast.textContent = message;
+      toast.setAttribute("role", "status");
+      return toast;
+    }
+
+    window.dashboardToast = (message, variant = "info") => {
+      if (!message) return;
+      const toast = makeToast(message, variant);
+      host.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.dataset.show = "true";
+      });
+      const dismiss = () => {
+        toast.dataset.show = "false";
+        toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+      };
+      setTimeout(dismiss, 4200);
+    };
+
+    window.dashboardHandleForm = (event, form) => {
+      const { successful, xhr } = event.detail || {};
+      const responseText = xhr && typeof xhr.responseText === "string" ? xhr.responseText.trim() : "";
+      const fallback = successful ? "Request sent successfully." : `Request failed${xhr?.status ? ` (status ${xhr.status})` : ""}.`;
+      const message = responseText || fallback;
+      window.dashboardToast(message, successful ? "success" : "error");
+      if (successful && form instanceof HTMLFormElement) {
+        form.reset();
+      }
+    };
+  })();
+  </script>
+</body></html>

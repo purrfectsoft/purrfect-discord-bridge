@@ -15,7 +15,7 @@ test("render_runtime_card includes Tailwind classes", () => {
     tz: "UTC"
   });
   assert.ok(html.includes("bg-slate-900/80"));
-  assert.ok(html.includes("text-brand-emerald-400"));
+  assert.ok(html.includes("text-brand-emerald-300"));
 });
 
 test("render_channel_grid handles channels", () => {
@@ -31,10 +31,11 @@ test("render_channel_grid handles channels", () => {
 test("render_forms injects defaults", () => {
   const html = render_forms({ defaultChannelId: "789" });
   assert.ok(html.includes("id=\"forms\""));
-  assert.ok(html.includes("id=\"formFlash\""));
+  assert.ok(html.includes("id=\"formAnnouncer\""));
   assert.ok(html.includes("placeholder=\"789\""));
   assert.ok(html.includes("hx-post=\"/note\""));
-  assert.ok(html.includes("hx-target=\"#formFlash\""));
+  assert.ok(html.includes("hx-target=\"#formAnnouncer\""));
+  assert.ok(html.includes("dashboardHandleForm"));
 });
 
 test("render_metrics adds htmx polling attributes", () => {
@@ -78,5 +79,5 @@ test("render_dashboard composes sections", () => {
   assert.ok(html.includes("hx-get=\"/metrics\""));
   assert.ok(html.includes("Post from Dashboard"));
   assert.ok(html.includes("Boom"));
-  assert.ok(html.includes("https://example.com"));
+  assert.ok(html.includes("href=\"https://example.com\""));
 });
