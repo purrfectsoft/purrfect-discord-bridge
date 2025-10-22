@@ -11,8 +11,6 @@
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
 		"verbatimModuleSyntax": true,
-		"allowImportingTsExtensions": true,
-		"noEmit": true,
 		"types": ["node"],
 		"sourceMap": true
 	},
