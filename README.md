@@ -27,7 +27,7 @@ Originally built for the **Purrfect Universe**, it is now released by **Purrfect
 | 🔒 **Privacy Guardrails** | Allowlisted channels only; PII redaction and opt-out keyword `#noai`. |
 | 🧱 **Structured Storage** | Compact per-day JSON logs under `data/logs/`, plus optional `notes/` and `keyhappenings.json`. |
 | 🌐 **Webhook API** | `/note`, `/happening`, `/digest` endpoints for programmatic updates. |
-| 📊 **Dashboard & Healthcheck** | Beautiful HTML dashboard on port `3000` and `/health.json` JSON endpoint. |
+| 📊 **Dashboard & Quick Actions** | Tailwind + HTMX dashboard with live metrics, toast feedback, and `/note`/`/happening`/`/digest` forms, plus `/health.json`. |
 | ⚡ **Autosummary Mode** | Optional interval summaries for high-traffic channels. |
 | 🧩 **Extensible** | Each subsystem (storage, redact, summarizer, dashboard) is modular and independent. |
 
@@ -68,6 +68,7 @@ DISCORD_CLIENT_ID=123456789012345678
 DISCORD_GUILD_ID=123456789012345678
 DISCORD_ALLOWED_CHANNEL_IDS=111111111111111111,222222222222222222
 DISCORD_SUMMARY_CHANNEL_ID=333333333333333333
+INVITE_PERMISSIONS=84992
 
 # OpenAI
 OPENAI_API_KEY=sk-...
@@ -85,9 +86,12 @@ AUTOSUMMARY_MIN_MESSAGES=25
 AUTOSUMMARY_LOOKBACK_HOURS=6
 AUTOSUMMARY_TARGET_CHANNEL_ID=
 
-# Webhook & Dashboard
-WEBHOOK_PORT=3080
-STATUS_PORT=3000
+# Server (dashboard + webhook share one port)
+SERVER_PORT=3000
+SERVER_HOST=127.0.0.1
+CANONICAL_BASE_URL=https://discord-bridge.example.com
+
+# Auth
 UNIVERSE_WEBHOOK_SECRET=change_me
 
 # Behavior
@@ -95,6 +99,7 @@ REDACT_PII=true
 OPT_OUT_KEYWORD="#noai"
 MAX_CONTEXT_MESSAGES=500
 DATA_DIR=./data
+KEYHAPPENINGS_SECTION_NAME=Key Happenings
 ```
 
 ---
@@ -110,10 +115,24 @@ src/
 ├─ webhook.js          # Minimal POST API (note, happening, digest)
 ├─ happenings.js       # Persistent "Key Happenings" from chat/webhook
 ├─ notes.js            # Manual notes subsystem
-├─ server.js    # HTML dashboard + /health.json
+├─ server.js           # Unified dashboard + HTMX forms + /health.json
+├─ dashboard/          # Tailwind HTML template + renderer helpers
 ├─ commands.js         # Slash command registration
 └─ utils/time.js       # Timezone helpers
 ```
+
+---
+
+## 🧭 Dashboard Quick Actions
+
+The dashboard (served from `SERVER_HOST:SERVER_PORT`) blends live metrics with HTMX-powered controls:
+
+* **Bridge secret input** — enter your `UNIVERSE_WEBHOOK_SECRET` once; every form automatically includes it.
+* **Quick forms for `/note`, `/happening`, `/digest`** — launch notes, highlight happenings, or trigger a digest directly from the browser. Buttons expose loading spinners while HTMX handles the POST.
+* **Accessible toast feedback** — sanitized success and error messages surface as animated toasts that work well for screen readers and copying into incident threads.
+* **Auto-refreshing metrics** — runtime, allowlist, and channel activity cards refresh every 30 seconds without a full page reload.
+
+Set `CANONICAL_BASE_URL` if you want the dashboard footer to surface a preferred production URL.
 
 ---
 
@@ -173,17 +192,17 @@ curl -X POST https://yourbridge/happening \
 
 | Route          | Purpose                           |
 | -------------- | --------------------------------- |
-| `/`            | HTML dashboard (auto-refresh 30s) |
+| `/`            | Live Tailwind + HTMX dashboard with quick actions |
 | `/health.json` | JSON status for uptime monitoring |
 
 Displays:
 
-* Bot online/offline status
-* Uptime
-* OpenAI model in use
-* Daily cron and autosummary config
+* Bot online/offline status & uptime
+* OpenAI model currently in use
+* Daily cron and autosummary configuration, including autosummary thresholds
 * Channel message counts (24h / 7d)
-* Recent errors
+* Recent errors with newest first
+* Toast feedback after posting `/note`, `/happening`, or `/digest`
 
 ---
 
@@ -193,7 +212,7 @@ Displays:
 * `summarizer.js` guarantees **no hallucination** — if no messages, returns `"No Discord activity found..."`.
 * Logs rotate by day; you can backfill missed messages anytime.
 * Notes and happenings are automatically redacted and timestamped.
-* Dashboard refreshes every 30s and is safe to proxy via Nginx.
+* Dashboard refreshes every 30s via HTMX partials and is safe to proxy via Nginx.
 
 ---
 
