@@ -25,6 +25,12 @@ function esc(s = "") {
     .replaceAll('"', "&quot;");
 }
 
+function canonicalMarkup(url) {
+  if (!url) return "—";
+  const safe = esc(url);
+  return `<a href="${safe}" class="break-all text-slate-200 underline decoration-dotted underline-offset-4 transition hover:text-slate-100" target="_blank" rel="noreferrer noopener">${safe}</a>`;
+}
+
 export function render_runtime_card(st) {
   return `
     <div class="relative overflow-hidden rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/25">
@@ -75,6 +81,7 @@ export function render_runtime_card(st) {
 }
 
 export function render_allowlist_card(st, { canonicalBaseUrl } = {}) {
+  const canonical = canonicalMarkup(canonicalBaseUrl);
   return `
     <div class="rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/25">
       <div class="space-y-6">
@@ -87,9 +94,9 @@ export function render_allowlist_card(st, { canonicalBaseUrl } = {}) {
             <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Msgs (24h total)</dt>
             <dd class="text-base font-semibold text-slate-100">${st.channels.reduce((a, c) => a + (c.count24h || 0), 0)}</dd>
           </div>
-          <div class="space-y-1">
+          <div class="space-y-1 min-w-0">
             <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Canonical</dt>
-            <dd class="text-base font-semibold text-slate-100">${esc(canonicalBaseUrl || "—")}</dd>
+            <dd class="text-base font-semibold text-slate-100 break-words">${canonical}</dd>
           </div>
         </dl>
         <div class="rounded-2xl border border-slate-800/60 bg-slate-900/70 p-4 text-sm text-slate-300">
@@ -97,8 +104,9 @@ export function render_allowlist_card(st, { canonicalBaseUrl } = {}) {
           <dd class="mt-3 flex flex-wrap gap-2">
             ${st.channels.length
               ? st.channels.map(c => `
-                <span title="${esc(c.id)}" class="inline-flex items-center gap-2 rounded-full bg-slate-800/80 px-3 py-1 text-xs font-medium text-slate-200">
-                  <span class="truncate">#${esc(c.name || c.id)}</span>
+                <span tabindex="0" aria-label="#${esc(c.name || c.id)} — ${esc(c.id)}" class="group relative inline-flex items-center gap-2 rounded-full bg-slate-800/80 px-3 py-1 text-xs font-medium text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky-500/40">
+                  <span class="max-w-[10rem] truncate sm:max-w-[14rem]">#${esc(c.name || c.id)}</span>
+                  <span class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-xl border border-slate-800/70 bg-slate-950/95 px-2 py-1 text-[11px] font-mono text-slate-200 shadow-2xl group-focus:flex group-focus-visible:flex group-hover:flex">${esc(c.id)}</span>
                 </span>
               `).join("")
               : '<span class="text-xs text-slate-500">No allowlisted channels</span>'}
@@ -148,9 +156,9 @@ export function render_forms({ defaultChannelId } = {}) {
           <input id="sharedSecretField" name="secret" type="password" placeholder="••••••••" class="mt-3 w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40" autocomplete="off"/>
         </div>
       </div>
-      <div id="formFlash" class="text-sm text-slate-400" role="status" aria-live="polite"></div>
+      <div id="formAnnouncer" class="sr-only" role="status" aria-live="polite"></div>
       <div class="grid gap-6 lg:grid-cols-3">
-        <form id="noteForm" method="post" action="/note" hx-post="/note" hx-target="#formFlash" hx-swap="innerHTML" hx-include="#sharedSecretField" hx-on::after-request="if (event.detail.successful) this.reset()" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
+        <form id="noteForm" method="post" action="/note" hx-post="/note" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
           <div class="space-y-1">
             <h3 class="text-sm font-semibold text-slate-100">Add /note</h3>
             <p class="text-xs text-slate-400">Capture quick notes straight into the digest stream.</p>
@@ -163,7 +171,7 @@ export function render_forms({ defaultChannelId } = {}) {
           <textarea name="text" rows="3" placeholder="What should be noted?" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"></textarea>
           <button type="submit" class="mt-auto inline-flex items-center justify-center rounded-2xl bg-brand-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-sky-500/30 transition hover:bg-brand-sky-400 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/60">Post /note</button>
         </form>
-        <form id="happeningForm" method="post" action="/happening" hx-post="/happening" hx-target="#formFlash" hx-swap="innerHTML" hx-include="#sharedSecretField" hx-on::after-request="if (event.detail.successful) this.reset()" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
+        <form id="happeningForm" method="post" action="/happening" hx-post="/happening" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
           <div class="space-y-1">
             <h3 class="text-sm font-semibold text-slate-100">Add /happening</h3>
             <p class="text-xs text-slate-400">Highlight noteworthy updates for the automated digest.</p>
@@ -174,7 +182,7 @@ export function render_forms({ defaultChannelId } = {}) {
           <textarea name="text" rows="3" placeholder="Key happening to surface in digests" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-purple-500 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/40"></textarea>
           <button type="submit" class="mt-auto inline-flex items-center justify-center rounded-2xl bg-brand-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-purple-500/30 transition hover:bg-brand-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/60">Post /happening</button>
         </form>
-        <form id="digestForm" method="post" action="/digest" hx-post="/digest" hx-target="#formFlash" hx-swap="innerHTML" hx-include="#sharedSecretField" hx-on::after-request="if (event.detail.successful) this.reset()" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
+        <form id="digestForm" method="post" action="/digest" hx-post="/digest" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
           <div class="space-y-1">
             <h3 class="text-sm font-semibold text-slate-100">Trigger /digest</h3>
             <p class="text-xs text-slate-400">Manually kick off a digest run when you need it.</p>
@@ -241,7 +249,7 @@ export function render_dashboard(state, options = {}) {
   const { canonicalBaseUrl = "", defaultChannelId = "" } = options;
   const metricsHtml = render_metrics(state, { canonicalBaseUrl });
   const formsHtml = render_forms({ defaultChannelId });
-  const canonical = esc(canonicalBaseUrl || "—");
+  const canonical = canonicalMarkup(canonicalBaseUrl);
 
   return dashboardTemplate
     .replace("<!--METRICS-->", metricsHtml)
