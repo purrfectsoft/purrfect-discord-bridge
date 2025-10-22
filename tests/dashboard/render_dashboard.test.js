@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { render_dashboard, render_runtime_card, render_channel_grid, render_forms } from "../../src/dashboard/render_dashboard.js";
+import { render_dashboard, render_runtime_card, render_channel_grid, render_forms, render_metrics } from "../../src/dashboard/render_dashboard.js";
 
 test("render_runtime_card includes Tailwind classes", () => {
   const html = render_runtime_card({
@@ -31,8 +31,29 @@ test("render_channel_grid handles channels", () => {
 test("render_forms injects defaults", () => {
   const html = render_forms({ defaultChannelId: "789" });
   assert.ok(html.includes("id=\"forms\""));
+  assert.ok(html.includes("id=\"formFlash\""));
   assert.ok(html.includes("placeholder=\"789\""));
-  assert.ok(html.includes("bg-slate-900/80"));
+  assert.ok(html.includes("hx-post=\"/note\""));
+  assert.ok(html.includes("hx-target=\"#formFlash\""));
+});
+
+test("render_metrics adds htmx polling attributes", () => {
+  const sample = {
+    botTag: "PurrBot#1234",
+    ready: true,
+    uptimeMs: 1000,
+    model: "gpt-5-codex",
+    dailyCron: "0 9 * * *",
+    lastDigestAt: "2024-01-01T00:00:00.000Z",
+    autosummary: { enabled: false },
+    tz: "UTC",
+    channels: [],
+    errors: []
+  };
+  const html = render_metrics(sample, { canonicalBaseUrl: "https://example.com" });
+  assert.ok(html.includes("id=\"metrics\""));
+  assert.ok(html.includes("hx-get=\"/metrics\""));
+  assert.ok(html.includes("hx-trigger=\"load, every 30s\""));
 });
 
 test("render_dashboard composes sections", () => {
@@ -53,8 +74,9 @@ test("render_dashboard composes sections", () => {
   const html = render_dashboard(sample, { canonicalBaseUrl: "https://example.com", defaultChannelId: "999" });
   assert.ok(html.includes("cdn.tailwindcss.com?plugins=forms,typography"));
   assert.ok(html.includes("tailwind.config"));
-  assert.ok(html.includes("Channel Activity"));
-  assert.ok(html.includes("Recent Errors"));
+  assert.ok(html.includes("https://unpkg.com/htmx.org"));
+  assert.ok(html.includes("hx-get=\"/metrics\""));
+  assert.ok(html.includes("Post from Dashboard"));
   assert.ok(html.includes("Boom"));
   assert.ok(html.includes("https://example.com"));
 });

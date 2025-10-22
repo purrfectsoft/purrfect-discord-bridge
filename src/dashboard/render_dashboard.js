@@ -125,7 +125,8 @@ export function render_forms({ defaultChannelId } = {}) {
   const happeningPlaceholder = esc(process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings");
   return `
     <div id="forms" class="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20 space-y-6">
-      <form method="post" action="/note" class="grid gap-3">
+      <div id="formFlash" class="text-sm text-slate-400" role="status" aria-live="polite"></div>
+      <form method="post" action="/note" hx-post="/note" hx-target="#formFlash" hx-swap="innerHTML" hx-on::after-request="if (event.detail.successful) this.reset()" class="grid gap-3">
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret <small class="ml-1 text-[11px] font-normal normal-case text-slate-500">Use your UNIVERSE_WEBHOOK_SECRET</small></label>
         <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Channel ID <small class="ml-1 text-[11px] font-normal normal-case text-slate-500">Defaults to summary channel if empty</small></label>
@@ -137,7 +138,7 @@ export function render_forms({ defaultChannelId } = {}) {
         <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-sky-500/30 transition hover:bg-brand-sky-400 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/60">Post /note</button>
       </form>
       <hr class="border-slate-800"/>
-      <form method="post" action="/happening" class="grid gap-3">
+      <form method="post" action="/happening" hx-post="/happening" hx-target="#formFlash" hx-swap="innerHTML" hx-on::after-request="if (event.detail.successful) this.reset()" class="grid gap-3">
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret</label>
         <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Section</label>
@@ -147,7 +148,7 @@ export function render_forms({ defaultChannelId } = {}) {
         <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-purple-500/30 transition hover:bg-brand-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/60">Post /happening</button>
       </form>
       <hr class="border-slate-800"/>
-      <form method="post" action="/digest" class="grid gap-3">
+      <form method="post" action="/digest" hx-post="/digest" hx-target="#formFlash" hx-swap="innerHTML" hx-on::after-request="if (event.detail.successful) this.reset()" class="grid gap-3">
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret</label>
         <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-emerald-500/30 transition hover:bg-brand-emerald-400 focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/60">Trigger /digest now</button>
@@ -162,15 +163,49 @@ export function render_errors(errors) {
   return `<ul class="space-y-2">${items}</ul>`;
 }
 
+export function render_metrics(state, options = {}) {
+  const { canonicalBaseUrl = "" } = options;
+  const nowStr = new Date().toLocaleString("en-GB", { hour12: false, timeZone: state.tz });
+  return `
+    <div id="metrics" hx-get="/metrics" hx-trigger="load, every 30s" hx-target="#metrics" hx-swap="outerHTML">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 class="text-2xl font-semibold text-slate-100">🐾 Purrfect Bridge — Dashboard</h1>
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2 text-xs font-medium text-slate-200">
+            ${esc(state.tz)} • <span class="text-[11px] text-slate-400">${nowStr}</span>
+          </span>
+        </div>
+      </header>
+
+      <section class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        ${render_runtime_card(state)}
+        ${render_allowlist_card(state, { canonicalBaseUrl })}
+      </section>
+
+      <section class="mt-10 space-y-4">
+        <h2 class="text-lg font-semibold text-slate-100">Channel Activity</h2>
+        ${render_channel_grid(state.channels)}
+      </section>
+
+      <section class="mt-10 space-y-4">
+        <h2 class="text-lg font-semibold text-slate-100">Recent Errors</h2>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20">
+          ${render_errors(state.errors)}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 export function render_dashboard(state, options = {}) {
   const { canonicalBaseUrl = "", defaultChannelId = "" } = options;
-  const nowStr = new Date().toLocaleString("en-GB", { hour12: false, timeZone: state.tz });
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Purrfect Universe — Bridge</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-zMeW/9P1uABPwIwp4KiWknK5UNvdnMFiD0GWY2yRA82CqSVdyCjBbhbIN4KdPqLf" crossorigin="anonymous"></script>
   <script>
   tailwind.config = {
     theme: {
@@ -200,97 +235,19 @@ export function render_dashboard(state, options = {}) {
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100">
   <div class="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-10">
-    <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <h1 class="text-2xl font-semibold text-slate-100">🐾 Purrfect Bridge — Dashboard</h1>
-      <div class="flex flex-wrap items-center gap-3">
-        <button id="refreshToggle" class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2 text-sm font-medium text-slate-200 shadow-sm shadow-black/20 transition hover:border-slate-500" aria-pressed="false" title="Pause/Resume auto-refresh">⏯︎ Auto-refresh</button>
-        <span class="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2 text-xs font-medium text-slate-200">
-          ${esc(state.tz)} • <span class="text-[11px] text-slate-400">${nowStr}</span>
-        </span>
-      </div>
-    </header>
-
-    <section class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-      ${render_runtime_card(state)}
-      ${render_allowlist_card(state, { canonicalBaseUrl })}
-    </section>
-
-    <section class="space-y-4">
-      <h2 class="text-lg font-semibold text-slate-100">Channel Activity</h2>
-      ${render_channel_grid(state.channels)}
-    </section>
+    ${render_metrics(state, { canonicalBaseUrl })}
 
     <section class="space-y-4">
       <h2 class="text-lg font-semibold text-slate-100">Post from Dashboard</h2>
       ${render_forms({ defaultChannelId })}
     </section>
 
-    <section class="space-y-4">
-      <h2 class="text-lg font-semibold text-slate-100">Recent Errors</h2>
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20">
-        ${render_errors(state.errors)}
-      </div>
-    </section>
-
     <footer class="pt-4 text-xs text-slate-500">
-      Auto-refresh every 30s (pauses while typing or when forms are in view)
+      Live metrics refresh every 30s
       • <a href="/health.json" class="text-slate-400 underline hover:text-slate-200">/health.json</a>
       • Canonical: ${esc(canonicalBaseUrl || "—")}
     </footer>
   </div>
-
-  <script>
-  (function(){
-    var REFRESH_MS = 30000;
-    var paused = false;
-    var byFocus = false;
-    var byVisibility = false;
-
-    var toggleBtn = document.getElementById('refreshToggle');
-    function updateToggleUI(){
-      toggleBtn.setAttribute('aria-pressed', String(paused));
-      toggleBtn.textContent = (paused ? '▶︎ Resume auto-refresh' : '⏸︎ Pause auto-refresh');
-    }
-    toggleBtn.addEventListener('click', function(){
-      paused = !paused;
-      updateToggleUI();
-    });
-    updateToggleUI();
-
-    document.addEventListener('focusin', function(e){
-      if (e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) {
-        byFocus = true; paused = true; updateToggleUI();
-      }
-    });
-    document.addEventListener('focusout', function(){
-      byFocus = false;
-      if (!byVisibility) { paused = false; updateToggleUI(); }
-    });
-
-    var formsEl = document.getElementById('forms');
-    if ('IntersectionObserver' in window && formsEl) {
-      var io = new IntersectionObserver(function(entries){
-        var entry = entries[0];
-        byVisibility = entry && entry.intersectionRatio >= 0.5;
-        if (byVisibility) paused = true;
-        else if (!byFocus) paused = false;
-        updateToggleUI();
-      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
-      io.observe(formsEl);
-    } else if (formsEl) {
-      window.addEventListener('scroll', function(){
-        var r = formsEl.getBoundingClientRect();
-        byVisibility = (r.top < window.innerHeight * 0.2) && (r.bottom > window.innerHeight * 0.2);
-        if (byVisibility) paused = true; else if (!byFocus) paused = false;
-        updateToggleUI();
-      });
-    }
-
-    setInterval(function(){
-      if (!paused) { window.location.reload(); }
-    }, REFRESH_MS);
-  })();
-  </script>
 </body></html>`;
 }
 
