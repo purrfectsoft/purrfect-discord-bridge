@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 
 import type {
-	DashboardOptions,
-	DashboardState,
-	MetricsOptions,
+        DashboardOptions,
+        DashboardState,
+        MetricsOptions,
 } from "../types.js";
 
 const dashboardTemplate = readFileSync(
@@ -35,9 +35,9 @@ function esc(value: unknown = ""): string {
 }
 
 function canonicalMarkup(url?: string | null): string {
-	if (!url) return "—";
-	const safe = esc(url);
-	return `<a href="${safe}" class="break-all text-slate-200 underline decoration-dotted underline-offset-4 transition hover:text-slate-100" target="_blank" rel="noreferrer noopener">${safe}</a>`;
+        if (!url) return "—";
+        const safe = esc(url);
+        return `<a href="${safe}" class="break-all text-slate-200 underline decoration-dotted underline-offset-4 transition hover:text-slate-100" target="_blank" rel="noreferrer noopener">${safe}</a>`;
 }
 
 export function render_runtime_card(st: DashboardState): string {
@@ -167,7 +167,7 @@ export function render_channel_grid(
 }
 
 export function render_forms({
-	defaultChannelId,
+        defaultChannelId,
 }: DashboardOptions = {}): string {
 	const happeningPlaceholder = esc(
 		process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings",
@@ -227,13 +227,12 @@ export function render_forms({
             <h3 class="text-sm font-semibold text-slate-100">Trigger /digest</h3>
             <p class="text-xs text-slate-400">Manually kick off a digest run when you need it.</p>
           </div>
-          <p class="text-xs text-slate-400">We'll queue a digest using the configured summary channel and hours.</p>
           <button type="submit" class="mt-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-emerald-500/30 transition hover:bg-brand-emerald-400 focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/60 data-[loading=true]:cursor-not-allowed data-[loading=true]:opacity-80" data-dashboard-button>
             <svg class="hidden h-4 w-4 animate-spin" data-dashboard-spinner viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle class="opacity-25" cx="12" cy="12" r="10"></circle>
               <path class="opacity-75" d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
             </svg>
-            <span data-dashboard-label>Run /digest</span>
+            <span data-dashboard-label>Trigger /digest now</span>
           </button>
         </form>
       </div>
@@ -241,25 +240,78 @@ export function render_forms({
   `;
 }
 
+export function render_errors(errors?: string[] | null): string {
+        const items = (errors || [])
+                .slice(-5)
+                .reverse()
+                .map((error) => `<li class="font-mono text-xs text-rose-300/90"><code>${esc(error)}</code></li>`)
+                .join("")
+                || '<li class="text-xs text-slate-500">No recent errors</li>';
+        return `<ul class="space-y-2">${items}</ul>`;
+}
+
 export function render_metrics(
-	state: DashboardState,
-	options: MetricsOptions = {},
+        state: DashboardState,
+        options: MetricsOptions = {},
 ): string {
-	return `
-    <section id="metrics" class="space-y-8" hx-get="/metrics" hx-trigger="load, every 30s" hx-swap="outerHTML">
-      ${render_runtime_card(state)}
-      ${render_allowlist_card(state, options)}
-      ${render_channel_grid(state.channels)}
-    </section>
+        const { canonicalBaseUrl = "" } = options;
+        const nowStr = new Date().toLocaleString("en-GB", {
+                hour12: false,
+                timeZone: state.tz,
+        });
+        return `
+    <div id="metrics" hx-get="/metrics" hx-trigger="load, every 30s" hx-target="#metrics" hx-swap="outerHTML">
+      <header class="relative overflow-hidden rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-900/90 via-slate-950 to-slate-950/90 p-6 sm:p-8 shadow-xl shadow-black/30">
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.15),transparent_45%)]"></div>
+        <div class="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div class="space-y-2 text-balance">
+            <h1 class="text-2xl font-semibold text-slate-100 sm:text-3xl">🐾 Purrfect Bridge</h1>
+            <p class="text-sm text-slate-400 sm:text-base">Realtime visibility into summaries, happenings, and bridge health.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/70 px-4 py-2 text-xs font-medium text-slate-200">
+              <span class="rounded-full bg-slate-800/80 px-2 py-1 text-[11px] font-semibold text-slate-300">${esc(state.tz)}</span>
+              <span class="text-[11px] text-slate-400">${nowStr}</span>
+            </span>
+            <span class="inline-flex items-center gap-2 rounded-full bg-slate-900/70 px-4 py-2 text-xs text-slate-300">
+              <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-sky-500"></span>
+              Live refresh every 30s
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <section class="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        ${render_runtime_card(state)}
+        ${render_allowlist_card(state, { canonicalBaseUrl })}
+      </section>
+
+      <section class="mt-12 space-y-5">
+        <h2 class="text-lg font-semibold text-slate-100">Channel Activity</h2>
+        ${render_channel_grid(state.channels)}
+      </section>
+
+      <section class="mt-12 space-y-5">
+        <h2 class="text-lg font-semibold text-slate-100">Recent Errors</h2>
+        <div class="rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/20">
+          ${render_errors(state.errors)}
+        </div>
+      </section>
+    </div>
   `;
 }
 
 export default function render_dashboard(
-	state: DashboardState,
-	options: DashboardOptions = {},
+        state: DashboardState,
+        options: DashboardOptions = {},
 ): string {
-	const { canonicalBaseUrl, defaultChannelId } = options;
-	return dashboardTemplate
-		.replace("<!--METRICS-->", render_metrics(state, { canonicalBaseUrl }))
-		.replace("<!--FORMS-->", render_forms({ defaultChannelId }));
+        const { canonicalBaseUrl = "", defaultChannelId = "" } = options;
+        const metricsHtml = render_metrics(state, { canonicalBaseUrl });
+        const formsHtml = render_forms({ defaultChannelId });
+        const canonical = canonicalMarkup(canonicalBaseUrl);
+
+        return dashboardTemplate
+                .replace("<!--METRICS-->", metricsHtml)
+                .replace("<!--FORMS-->", formsHtml)
+                .replace("<!--CANONICAL-->", canonical);
 }
