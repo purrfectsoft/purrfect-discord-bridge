@@ -1,40 +1,47 @@
 import { readFileSync } from "node:fs";
 
-import type { DashboardOptions, DashboardState, MetricsOptions } from "../types.js";
+import type {
+	DashboardOptions,
+	DashboardState,
+	MetricsOptions,
+} from "../types.js";
 
-const dashboardTemplate = readFileSync(new URL("./dashboard.html", import.meta.url), "utf8");
+const dashboardTemplate = readFileSync(
+	new URL("./dashboard.html", import.meta.url),
+	"utf8",
+);
 
 function human(ms?: number | null): string {
-  if (!ms || ms < 0) return "—";
-  const totalSeconds = Math.floor(ms / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const parts: string[] = [];
-  if (days) parts.push(`${days}d`);
-  if (hours || days) parts.push(`${hours}h`);
-  if (minutes || hours || days) parts.push(`${minutes}m`);
-  parts.push(`${seconds}s`);
-  return parts.join(" ");
+	if (!ms || ms < 0) return "—";
+	const totalSeconds = Math.floor(ms / 1000);
+	const days = Math.floor(totalSeconds / 86400);
+	const hours = Math.floor((totalSeconds % 86400) / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+	const parts: string[] = [];
+	if (days) parts.push(`${days}d`);
+	if (hours || days) parts.push(`${hours}h`);
+	if (minutes || hours || days) parts.push(`${minutes}m`);
+	parts.push(`${seconds}s`);
+	return parts.join(" ");
 }
 
 function esc(value: unknown = ""): string {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+	return String(value)
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;");
 }
 
 function canonicalMarkup(url?: string | null): string {
-  if (!url) return "—";
-  const safe = esc(url);
-  return `<a href="${safe}" class="break-all text-slate-200 underline decoration-dotted underline-offset-4 transition hover:text-slate-100" target="_blank" rel="noreferrer noopener">${safe}</a>`;
+	if (!url) return "—";
+	const safe = esc(url);
+	return `<a href="${safe}" class="break-all text-slate-200 underline decoration-dotted underline-offset-4 transition hover:text-slate-100" target="_blank" rel="noreferrer noopener">${safe}</a>`;
 }
 
 export function render_runtime_card(st: DashboardState): string {
-  return `
+	return `
     <div class="relative overflow-hidden rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/25">
       <div class="pointer-events-none absolute inset-x-8 -top-24 h-44 rounded-full bg-gradient-to-br from-brand-emerald-500/20 via-brand-sky-500/10 to-transparent blur-3xl"></div>
       <div class="relative space-y-6">
@@ -82,9 +89,12 @@ export function render_runtime_card(st: DashboardState): string {
   `;
 }
 
-export function render_allowlist_card(st: DashboardState, { canonicalBaseUrl }: MetricsOptions = {}): string {
-  const canonical = canonicalMarkup(canonicalBaseUrl);
-  return `
+export function render_allowlist_card(
+	st: DashboardState,
+	{ canonicalBaseUrl }: MetricsOptions = {},
+): string {
+	const canonical = canonicalMarkup(canonicalBaseUrl);
+	return `
     <div class="rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/25">
       <div class="space-y-6">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -104,18 +114,20 @@ export function render_allowlist_card(st: DashboardState, { canonicalBaseUrl }: 
         <div class="rounded-2xl border border-slate-800/60 bg-slate-900/70 p-4 text-sm text-slate-300">
           <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Channels</dt>
           <dd class="mt-3 flex flex-wrap gap-2">
-            ${st.channels.length
-              ? st.channels
-                  .map(
-                    (c) => `
+            ${
+							st.channels.length
+								? st.channels
+										.map(
+											(c) => `
                 <span tabindex="0" aria-label="#${esc(c.name || c.id)} — ${esc(c.id)}" class="group relative inline-flex items-center gap-2 rounded-full bg-slate-800/80 px-3 py-1 text-xs font-medium text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky-500/40">
                   <span class="max-w-[10rem] truncate sm:max-w-[14rem]">#${esc(c.name || c.id)}</span>
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-xl border border-slate-800/70 bg-slate-950/95 px-2 py-1 text-[11px] font-mono text-slate-200 shadow-2xl group-focus:flex group-focus-visible:flex group-hover:flex">${esc(c.id)}</span>
                 </span>
               `,
-                  )
-                  .join("")
-              : '<span class="text-xs text-slate-500">No allowlisted channels</span>'}
+										)
+										.join("")
+								: '<span class="text-xs text-slate-500">No allowlisted channels</span>'
+						}
           </dd>
         </div>
       </div>
@@ -123,13 +135,15 @@ export function render_allowlist_card(st: DashboardState, { canonicalBaseUrl }: 
   `;
 }
 
-export function render_channel_grid(channels: DashboardState["channels"]): string {
-  if (!channels?.length) {
-    return `<div class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-8 text-center text-slate-400">No channels</div>`;
-  }
-  const cards = channels
-    .map(
-      (ch) => `
+export function render_channel_grid(
+	channels: DashboardState["channels"],
+): string {
+	if (!channels?.length) {
+		return `<div class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-8 text-center text-slate-400">No channels</div>`;
+	}
+	const cards = channels
+		.map(
+			(ch) => `
     <div class="flex h-full flex-col rounded-3xl border border-slate-800/60 bg-slate-900/70 p-5 shadow-lg shadow-black/20">
       <div class="flex flex-wrap items-center gap-3">
         <span class="max-w-full shrink min-w-0 truncate rounded-full bg-slate-800/80 px-3 py-1 text-sm font-medium text-slate-100">#${esc(ch.name || ch.id)}</span>
@@ -147,14 +161,18 @@ export function render_channel_grid(channels: DashboardState["channels"]): strin
       </dl>
     </div>
   `,
-    )
-    .join("");
-  return `<div class="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">${cards}</div>`;
+		)
+		.join("");
+	return `<div class="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">${cards}</div>`;
 }
 
-export function render_forms({ defaultChannelId }: DashboardOptions = {}): string {
-  const happeningPlaceholder = esc(process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings");
-  return `
+export function render_forms({
+	defaultChannelId,
+}: DashboardOptions = {}): string {
+	const happeningPlaceholder = esc(
+		process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings",
+	);
+	return `
     <div id="forms" class="rounded-3xl border border-slate-800/60 bg-slate-900/70 p-6 sm:p-7 shadow-xl shadow-black/20 space-y-8">
       <div class="space-y-2">
         <p class="text-sm text-slate-400">Use these quick actions to capture notes, flag key happenings, or trigger a digest directly from the dashboard.</p>
@@ -223,8 +241,11 @@ export function render_forms({ defaultChannelId }: DashboardOptions = {}): strin
   `;
 }
 
-export function render_metrics(state: DashboardState, options: MetricsOptions = {}): string {
-  return `
+export function render_metrics(
+	state: DashboardState,
+	options: MetricsOptions = {},
+): string {
+	return `
     <section id="metrics" class="space-y-8" hx-get="/metrics" hx-trigger="load, every 30s" hx-swap="outerHTML">
       ${render_runtime_card(state)}
       ${render_allowlist_card(state, options)}
@@ -233,9 +254,12 @@ export function render_metrics(state: DashboardState, options: MetricsOptions = 
   `;
 }
 
-export default function render_dashboard(state: DashboardState, options: DashboardOptions = {}): string {
-  const { canonicalBaseUrl, defaultChannelId } = options;
-  return dashboardTemplate
-    .replace("<!--METRICS-->", render_metrics(state, { canonicalBaseUrl }))
-    .replace("<!--FORMS-->", render_forms({ defaultChannelId }));
+export default function render_dashboard(
+	state: DashboardState,
+	options: DashboardOptions = {},
+): string {
+	const { canonicalBaseUrl, defaultChannelId } = options;
+	return dashboardTemplate
+		.replace("<!--METRICS-->", render_metrics(state, { canonicalBaseUrl }))
+		.replace("<!--FORMS-->", render_forms({ defaultChannelId }));
 }

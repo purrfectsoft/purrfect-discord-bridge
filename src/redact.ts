@@ -3,14 +3,14 @@ const PHONE_REGEX = /\b(?:\+?\d[\s-]?){7,15}\b/g; // naive, but works
 const LONG_NUMBER_REGEX = /\b\d{16,}\b/g; // likely cards or IDs
 
 export function redact(text: string): string {
-  if (process.env.REDACT_PII !== "true") return text;
-  return text
-    .replace(EMAIL_REGEX, "[redacted-email]")
-    .replace(PHONE_REGEX, "[redacted-phone]")
-    .replace(LONG_NUMBER_REGEX, "[redacted-number]");
+	if (process.env.REDACT_PII !== "true") return text;
+	return text
+		.replace(EMAIL_REGEX, "[redacted-email]")
+		.replace(PHONE_REGEX, "[redacted-phone]")
+		.replace(LONG_NUMBER_REGEX, "[redacted-number]");
 }
 
 export function shouldSkip(text: string): boolean {
-  const kw = (process.env.OPT_OUT_KEYWORD || "#noai").toLowerCase();
-  return text.toLowerCase().includes(kw);
+	const kw = (process.env.OPT_OUT_KEYWORD || "#noai").toLowerCase();
+	return text.toLowerCase().includes(kw);
 }
