@@ -2,18 +2,33 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { render_dashboard, render_runtime_card, render_channel_grid, render_forms, render_metrics } from "../../src/dashboard/render_dashboard.js";
+import type { DashboardState } from "../../src/types.js";
 
-test("render_runtime_card includes Tailwind classes", () => {
-  const html = render_runtime_card({
-    botTag: "PurrBot#1234",
+function makeState(overrides: Partial<DashboardState> = {}): DashboardState {
+  return {
+    tz: "UTC",
     ready: true,
-    uptimeMs: 123456,
+    botTag: "PurrBot#1234",
+    uptimeMs: 1234,
     model: "gpt-5-codex",
     dailyCron: "0 9 * * *",
-    lastDigestAt: "2024-01-01T12:00:00.000Z",
-    autosummary: { enabled: true, cron: "*/15 * * * *", min: 5, lookback: 3 },
-    tz: "UTC"
-  });
+    lastDigestAt: Date.now(),
+    autosummary: { enabled: false, cron: "0 * * * *", min: 10, lookback: 6 },
+    channels: [],
+    errors: [],
+    ...overrides,
+  };
+}
+
+test("render_runtime_card includes Tailwind classes", () => {
+  const html = render_runtime_card(
+    makeState({
+      ready: true,
+      uptimeMs: 123456,
+      autosummary: { enabled: true, cron: "*/15 * * * *", min: 5, lookback: 3 },
+      lastDigestAt: Date.parse("2024-01-01T12:00:00.000Z"),
+    }),
+  );
   assert.ok(html.includes("bg-slate-900/80"));
   assert.ok(html.includes("text-brand-emerald-300"));
 });
@@ -39,18 +54,9 @@ test("render_forms injects defaults", () => {
 });
 
 test("render_metrics adds htmx polling attributes", () => {
-  const sample = {
-    botTag: "PurrBot#1234",
-    ready: true,
-    uptimeMs: 1000,
-    model: "gpt-5-codex",
-    dailyCron: "0 9 * * *",
-    lastDigestAt: "2024-01-01T00:00:00.000Z",
-    autosummary: { enabled: false },
-    tz: "UTC",
-    channels: [],
-    errors: []
-  };
+  const sample = makeState({
+    lastDigestAt: Date.parse("2024-01-01T00:00:00.000Z"),
+  });
   const html = render_metrics(sample, { canonicalBaseUrl: "https://example.com" });
   assert.ok(html.includes("id=\"metrics\""));
   assert.ok(html.includes("hx-get=\"/metrics\""));
@@ -58,20 +64,15 @@ test("render_metrics adds htmx polling attributes", () => {
 });
 
 test("render_dashboard composes sections", () => {
-  const sample = {
-    botTag: "PurrBot#1234",
+  const sample = makeState({
     ready: false,
     uptimeMs: 98765,
-    model: "gpt-5-codex",
-    dailyCron: "0 9 * * *",
-    lastDigestAt: "2024-01-02T12:00:00.000Z",
-    autosummary: { enabled: false, cron: "0 * * * *", min: 10, lookback: 6 },
-    tz: "UTC",
+    lastDigestAt: Date.parse("2024-01-02T12:00:00.000Z"),
     channels: [
       { id: "111", name: "alpha", count24h: 1, count7d: 10 }
     ],
-    errors: ["Boom", "Kapow"]
-  };
+    errors: ["Boom", "Kapow"],
+  });
   const html = render_dashboard(sample, { canonicalBaseUrl: "https://example.com", defaultChannelId: "999" });
   assert.ok(html.includes("cdn.tailwindcss.com?plugins=forms,typography"));
   assert.ok(html.includes("tailwind.config"));

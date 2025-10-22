@@ -1,11 +1,13 @@
 import OpenAI from "openai";
 
-// lightweight formatter (no luxon)
-const tz = process.env.TIMEZONE || "Asia/Dhaka";
-function fmt(dt) {
+import type { LoggedMessage, SummarizeMessagesInput } from "./types.js";
+
+const defaultTz = process.env.TIMEZONE || "Asia/Dhaka";
+
+function fmt(dt: string | number | Date): string {
   try {
     return new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz,
+      timeZone: defaultTz,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -38,19 +40,16 @@ Include only sections that have content. Use this order when applicable:
 6) Miscellaneous (if there was chatter with no clear actions)
 7) Suggestions (max 3, only if grounded in the messages)`;
 
-export async function summarizeMessages({ messages, model, hours, tz: tzOverride }) {
-  // hard guard: no content => no summary/fabrication
-  if (!messages || messages.length === 0) {
+export async function summarizeMessages({ messages, model, hours, tz }: SummarizeMessagesInput): Promise<string> {
+  if (!messages?.length) {
     return "No Discord activity found in the selected window.";
   }
 
-  // build header & content (keep size sane)
   const now = new Date();
-  const header = `Time window: last ${hours}h, as of ${fmt(now)} ${tzOverride || tz}`;
+  const header = `Time window: last ${hours}h, as of ${fmt(now)} ${tz || defaultTz}`;
 
-  // cap message count to avoid token bloat
   const MAX_LINES = 800;
-  const safe = messages.slice(-MAX_LINES);
+  const safe: LoggedMessage[] = messages.slice(-MAX_LINES);
 
   const content = safe
     .map((m) => {
@@ -70,17 +69,14 @@ export async function summarizeMessages({ messages, model, hours, tz: tzOverride
 
   const resp = await openai.chat.completions.create({
     model: model || process.env.OPENAI_MODEL || "gpt-4o-mini",
-    temperature: 0, // deterministic & reduces hallucinations
+    temperature: 0,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
   });
 
-  const out =
-    resp.choices?.[0]?.message?.content?.trim() ||
-    "No Discord activity found in the selected window.";
+  const out = resp.choices?.[0]?.message?.content?.trim() ?? "No Discord activity found in the selected window.";
 
-  // Safety: ensure we never return an empty string when input existed
   return out.length ? out : "Miscellaneous\n- Conversations occurred, but nothing actionable was detected.";
 }
