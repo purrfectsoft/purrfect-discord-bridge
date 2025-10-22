@@ -1,3 +1,4 @@
+// src/index.js
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -12,30 +13,58 @@ import { ensureNotesDir, addNote, getNotesBetween } from "./notes.js";
 import { getHappenings } from "./happenings.js";
 import { startServer } from "./server.js";
 
+// ──────────────────────────────────────────────────────────────
+// Core config
+// ──────────────────────────────────────────────────────────────
 const tz = process.env.TIMEZONE || "Asia/Dhaka";
-const allowed = new Set((process.env.DISCORD_ALLOWED_CHANNEL_IDS || "").split(",").map(s => s.trim()).filter(Boolean));
+const allowed = new Set(
+  (process.env.DISCORD_ALLOWED_CHANNEL_IDS || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+);
 const maxContext = parseInt(process.env.MAX_CONTEXT_MESSAGES || "500", 10);
 
-// autosummary knobs (if you added these previously)
+// ──────────────────────────────────────────────────────────────
+/** Lightweight telemetry for the dashboard */
+// ──────────────────────────────────────────────────────────────
+const statusState = {
+  startedAt: Date.now(),
+  lastDigestAt: null,
+  errors: [],
+  botTag: null,
+  ready: false,
+};
+function logError(context, err) {
+  const msg = `${context}: ${err?.message || String(err)}`;
+  statusState.errors.push(msg);
+  if (statusState.errors.length > 200) statusState.errors = statusState.errors.slice(-200);
+  console.error(msg);
+}
+
+// ──────────────────────────────────────────────────────────────
+// Autosummary knobs
+// ──────────────────────────────────────────────────────────────
 const autosummaryEnabled = String(process.env.AUTOSUMMARY_ENABLED || "false").toLowerCase() === "true";
 const autosummaryCron = process.env.AUTOSUMMARY_INTERVAL_CRON || "*/30 * * * *";
 const autosummaryMin = parseInt(process.env.AUTOSUMMARY_MIN_MESSAGES || "25", 10);
 const autosummaryTarget = process.env.AUTOSUMMARY_TARGET_CHANNEL_ID || null;
 const autosummaryLookbackHrs = parseInt(process.env.AUTOSUMMARY_LOOKBACK_HOURS || "6", 10);
 
+// ──────────────────────────────────────────────────────────────
+// Bootstrapping
+// ──────────────────────────────────────────────────────────────
 ensureDirs();
 ensureNotesDir();
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   partials: [Partials.Channel]
 });
 
 client.once("ready", async () => {
+  statusState.ready = true;
+  statusState.botTag = client.user.tag;
   console.log(`🤖 Logged in as ${client.user.tag}`);
   try {
     const clientId = process.env.DISCORD_CLIENT_ID;
@@ -44,30 +73,41 @@ client.once("ready", async () => {
       const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=${perms}&scope=bot%20applications.commands`;
       console.log(`🔗 Bot OAuth Invite URL: ${url}`);
     }
-  } catch {}
+  } catch (err) {
+    logError("ready", err);
+  }
 });
 
-// ---------- helpers ----------
-
+// ──────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────
 function fmt(dt) {
   try {
     return new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", hour12: false
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
     }).format(dt instanceof Date ? dt : new Date(dt));
-  } catch { return String(dt); }
+  } catch {
+    return String(dt);
+  }
 }
+
 function buildFooter({ channelName, count, start, end }) {
   return `\n\n— _Summary based on ${count} messages from #${channelName} between ${fmt(start)} and ${fmt(end)} ${tz}_`;
 }
 
-// NEW: split long text to respect Discord's 2000-char limit
+// Split text into <=2000 char chunks for Discord
 function splitIntoDiscordChunks(text, limit = 2000) {
-  if ((text || "").length <= limit) return [text || ""];
+  const s = String(text || "");
+  if (s.length <= limit) return [s];
   const chunks = [];
   const separators = ["\n\n---\n\n", "\n\n", "\n", " "];
-  let remaining = text;
-
+  let remaining = s;
   while (remaining.length > limit) {
     let cut = -1;
     for (const sep of separators) {
@@ -82,11 +122,9 @@ function splitIntoDiscordChunks(text, limit = 2000) {
   return chunks;
 }
 
-// send long content to a channel safely
 async function sendLong(channel, content) {
   const parts = splitIntoDiscordChunks(content);
   for (const p of parts) {
-    // avoid sending empty strings
     if (p && p.trim().length) {
       // eslint-disable-next-line no-await-in-loop
       await channel.send({ content: p });
@@ -94,12 +132,9 @@ async function sendLong(channel, content) {
   }
 }
 
-// deliver long content for an interaction: first chunk edits the reply; rest as follow-ups
 async function deliverInteractionText(interaction, content) {
   const parts = splitIntoDiscordChunks(content);
-  if (parts.length === 1) {
-    return interaction.editReply({ content: parts[0] });
-  }
+  if (parts.length === 1) return interaction.editReply({ content: parts[0] });
   await interaction.editReply({ content: parts[0] });
   for (let i = 1; i < parts.length; i += 1) {
     // eslint-disable-next-line no-await-in-loop
@@ -107,7 +142,6 @@ async function deliverInteractionText(interaction, content) {
   }
 }
 
-// render “Key Happenings” captured via webhook/chat
 function renderHappenings({ sinceISO, untilISO }) {
   const sectionName = process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings";
   const rows = getHappenings({ sinceISO, untilISO });
@@ -116,7 +150,7 @@ function renderHappenings({ sinceISO, untilISO }) {
   return `\n\n**${sectionName} (from Chat)**\n${lines.join("\n")}`;
 }
 
-// backfill helper (unchanged logic)
+// Backfill helper to fetch recent messages if logs are empty
 async function backfillChannelMessages(channelId, sinceISO, limit = 100) {
   try {
     const channel = await client.channels.fetch(channelId);
@@ -150,11 +184,14 @@ async function backfillChannelMessages(channelId, sinceISO, limit = 100) {
     }
     return collected;
   } catch (e) {
-    console.warn(`Backfill failed for channel ${channelId}:`, e.message);
+    logError(`backfill:${channelId}`, e);
     return [];
   }
 }
 
+// ──────────────────────────────────────────────────────────────
+// Summary builders
+// ──────────────────────────────────────────────────────────────
 async function summarizeChannel(chId, hoursDefault) {
   const hours = hoursDefault;
   const { start, end } = windowHoursEnd(tz, hours);
@@ -164,12 +201,13 @@ async function summarizeChannel(chId, hoursDefault) {
     msgs = loadWindow({ channelId: chId, sinceISO: start.toISO(), untilISO: end.toISO() });
   }
   if (!msgs.length) return null;
+
   const slice = msgs.slice(-maxContext);
   const out = await summarizeMessages({ messages: slice, model: process.env.OPENAI_MODEL, hours, tz });
   const ch = await client.channels.fetch(chId).catch(() => null);
   const footer = buildFooter({ channelName: ch?.name || chId, count: slice.length, start, end });
 
-  // Channel-specific notes (optional, if you're still using them)
+  // Channel-specific notes (if any)
   const notes = getNotesBetween({ sinceISO: start.toISO(), untilISO: end.toISO() }).filter(n => n.channelId === chId);
   let notesSection = "";
   if (notes.length) {
@@ -186,41 +224,46 @@ async function summarizeChannel(chId, hoursDefault) {
     notesSection = `\n\n${parts.join("\n\n")}`;
   }
 
-  // Global key happenings (from chat/webhook)
+  // Global “Key Happenings”
   const happeningsBlock = renderHappenings({ sinceISO: start.toISO(), untilISO: end.toISO() });
 
   return { title: `#${ch?.name || chId}`, content: out + footer + notesSection + happeningsBlock };
 }
 
-// run the multi-channel daily digest (used by cron & webhook)
+// Multi-channel digest (cron/webhook)
 async function runDigestOnce() {
-  const digestId = process.env.DISCORD_SUMMARY_CHANNEL_ID;
-  if (!digestId) return;
-  const digestChannel = await client.channels.fetch(digestId).catch(() => null);
-  if (!digestChannel) return;
+  try {
+    const digestId = process.env.DISCORD_SUMMARY_CHANNEL_ID;
+    if (!digestId) return;
+    const digestChannel = await client.channels.fetch(digestId).catch(() => null);
+    if (!digestChannel) return;
 
-  const hours = parseInt(process.env.SUMMARY_HOURS_DEFAULT || "24", 10);
-  const { start, end } = windowHoursEnd(tz, hours);
+    const hours = parseInt(process.env.SUMMARY_HOURS_DEFAULT || "24", 10);
+    const { start, end } = windowHoursEnd(tz, hours);
 
-  const sections = [];
-  for (const chId of Array.from(allowed)) {
-    const result = await summarizeChannel(chId, hours);
-    if (!result) continue;
-    sections.push(`**${result.title}**\n${result.content}`);
+    const sections = [];
+    for (const chId of Array.from(allowed)) {
+      const result = await summarizeChannel(chId, hours);
+      if (!result) continue;
+      sections.push(`**${result.title}**\n${result.content}`);
+    }
+
+    const universeHappenings = renderHappenings({ sinceISO: start.toISO(), untilISO: end.toISO() });
+
+    if (!sections.length && !universeHappenings) return;
+    const header = `**Universe Daily Digest** (last ${hours}h) – ${fmt(new Date())} ${tz}`;
+    const finalContent = [header, ...sections, universeHappenings].filter(Boolean).join("\n\n--- \n\n");
+    await sendLong(digestChannel, finalContent);
+
+    statusState.lastDigestAt = Date.now();
+  } catch (err) {
+    logError("runDigestOnce", err);
   }
-
-  const universeHappenings = renderHappenings({ sinceISO: start.toISO(), untilISO: end.toISO() });
-
-  if (!sections.length && !universeHappenings) return;
-  const header = `**Universe Daily Digest** (last ${hours}h) – ${fmt(new Date())} ${tz}`;
-  const finalContent = [header, ...sections, universeHappenings].filter(Boolean).join("\n\n--- \n\n");
-
-  // ✅ send safely in chunks
-  await sendLong(digestChannel, finalContent);
 }
 
-// ---------- events ----------
-
+// ──────────────────────────────────────────────────────────────
+// Events
+// ──────────────────────────────────────────────────────────────
 client.on("messageCreate", async (message) => {
   try {
     if (message.author.bot) return;
@@ -246,7 +289,7 @@ client.on("messageCreate", async (message) => {
       }
     });
 
-    // Inline notes (kept if you still use them)
+    // Inline notes (optional): 📝 or [note] prefix
     if (/^(\s*📝|\s*\[note\])/i.test(text)) {
       const noteText = clean.replace(/^(\s*📝|\s*\[note\])\s*/i, "");
       await addNote({
@@ -258,8 +301,8 @@ client.on("messageCreate", async (message) => {
         text: noteText
       });
     }
-  } catch (e) {
-    console.error("messageCreate handler error", e);
+  } catch (err) {
+    logError("messageCreate", err);
   }
 });
 
@@ -285,7 +328,6 @@ client.on("interactionCreate", async (interaction) => {
     const result = await summarizeChannel(chId, hours);
     if (!result) return interaction.editReply({ content: "No Discord activity found in the selected window." });
 
-    // If report: try embed; if too long for embed, fall back to chunked text
     if (name === "report") {
       const desc = result.content;
       if (desc.length <= 3900) {
@@ -295,7 +337,6 @@ client.on("interactionCreate", async (interaction) => {
           .setTimestamp(new Date());
         return interaction.editReply({ embeds: [embed] });
       }
-      // fallback for oversized embed
       return deliverInteractionText(interaction, `**Purrfect Universe – Channel Report**\n\n${desc}`);
     }
 
@@ -312,48 +353,66 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-// ---------- schedulers & webhook ----------
-
-// Nightly digest (scheduled)
+// ──────────────────────────────────────────────────────────────
+// Schedulers
+// ──────────────────────────────────────────────────────────────
 const cronExpr = process.env.DAILY_SUMMARY_CRON || "0 21 * * *";
 const dailyJob = new CronJob(cronExpr, runDigestOnce, null, true, tz);
 dailyJob.start();
 
-// Optional: autosummary (if enabled)
 if (autosummaryEnabled) {
   const autoJob = new CronJob(autosummaryCron, async () => {
-    const hours = autosummaryLookbackHrs;
-    const { start } = windowHoursEnd(tz, hours);
+    try {
+      const hours = autosummaryLookbackHrs;
+      const { start } = windowHoursEnd(tz, hours);
 
-    for (const chId of Array.from(allowed)) {
-      let msgs = loadWindow({ channelId: chId, sinceISO: start.toISO(), untilISO: new Date().toISOString() });
-      if (msgs.length === 0) {
-        await backfillChannelMessages(chId, start.toISO(), 200);
-        msgs = loadWindow({ channelId: chId, sinceISO: start.toISO(), untilISO: new Date().toISOString() });
+      for (const chId of Array.from(allowed)) {
+        let msgs = loadWindow({ channelId: chId, sinceISO: start.toISO(), untilISO: new Date().toISOString() });
+        if (msgs.length === 0) {
+          await backfillChannelMessages(chId, start.toISO(), 200);
+          msgs = loadWindow({ channelId: chId, sinceISO: start.toISO(), untilISO: new Date().toISOString() });
+        }
+        if (msgs.length < autosummaryMin) continue;
+
+        const result = await summarizeChannel(chId, hours);
+        if (!result) continue;
+
+        const targetId = autosummaryTarget || chId;
+        const targetChannel = await client.channels.fetch(targetId).catch(() => null);
+        if (!targetChannel) continue;
+
+        const header = `**Auto-summary** (last ${hours}h due to high activity – ${msgs.length} msgs)`;
+        await sendLong(targetChannel, `${header}\n\n${result.content}`);
       }
-      if (msgs.length < autosummaryMin) continue;
-
-      const result = await summarizeChannel(chId, hours);
-      if (!result) continue;
-
-      const targetId = autosummaryTarget || chId;
-      const targetChannel = await client.channels.fetch(targetId).catch(() => null);
-      if (!targetChannel) continue;
-
-      const header = `**Auto-summary** (last ${hours}h due to high activity – ${msgs.length} msgs)`;
-      await sendLong(targetChannel, `${header}\n\n${result.content}`);
+    } catch (err) {
+      logError("autosummary", err);
     }
   }, null, true, tz);
   console.log(`⚡ Auto-summary enabled: cron="${autosummaryCron}", min=${autosummaryMin}, lookback=${autosummaryLookbackHrs}h`);
 }
 
-// ✅ Unified single-port server (dashboard + webhooks)
+// ──────────────────────────────────────────────────────────────
+/** Unified single-port server (dashboard + webhooks) */
+// ──────────────────────────────────────────────────────────────
 startServer({
   port: parseInt(process.env.SERVER_PORT || process.env.STATUS_PORT || "3000", 10),
   host: process.env.SERVER_HOST || "127.0.0.1",
   canonicalBaseUrl: process.env.CANONICAL_BASE_URL || "",
   secret: process.env.UNIVERSE_WEBHOOK_SECRET,
-  onNote: async (n) => addNote(n),            // dashboard forms feed into notes/happenings sections
+  // Forms & API -> notes/happenings
+  onNote: async (n) => addNote(n),
+  // Some server implementations also support onHappening; pass-through if supported
+  onHappening: async (h) => {
+    // optional: you may store "happenings" differently; many teams map them to notes with a dedicated section
+    await addNote({
+      timestampISO: h.timestampISO || new Date().toISOString(),
+      author: h.author || "Dashboard",
+      authorId: h.authorId || "dashboard",
+      channelId: h.channelId || process.env.DISCORD_SUMMARY_CHANNEL_ID || null,
+      section: h.section || (process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings"),
+      text: h.text || ""
+    });
+  },
   onDigest: async () => runDigestOnce(),
   isAllowedChannel: (id) => allowed.has(id),
   defaultChannelId: process.env.DISCORD_SUMMARY_CHANNEL_ID,
@@ -394,4 +453,5 @@ startServer({
   }
 });
 
+// ──────────────────────────────────────────────────────────────
 client.login(process.env.DISCORD_TOKEN);

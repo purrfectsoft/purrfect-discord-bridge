@@ -29,8 +29,8 @@ async function parseBody(req) {
   const chunks = [];
   for await (const ch of req) chunks.push(ch);
   const raw = Buffer.concat(chunks).toString("utf8");
-  const ctype = req.headers["content-type"] || "";
-  // Support form posts from dashboard and JSON posts from scripts
+  const ctype = (req.headers["content-type"] || "").toLowerCase();
+
   if (ctype.includes("application/json")) {
     try { return JSON.parse(raw || "{}"); } catch { return {}; }
   }
@@ -40,23 +40,44 @@ async function parseBody(req) {
     for (const [k, v] of params) obj[k] = v;
     return obj;
   }
+  // allow empty / unknown content-types for simple form submits
+  if (!ctype) return {};
   return {};
 }
 
+/**
+ * startServer
+ * Single-port HTTP server for:
+ *   - GET  /             -> HTML dashboard (with forms)
+ *   - GET  /health.json  -> JSON health/status
+ *   - POST /note         -> add a manual note (form or JSON)
+ *   - POST /happening    -> add a "Key Happening" (form or JSON)
+ *   - POST /digest       -> trigger a digest
+ *
+ * Options:
+ *  - port, host
+ *  - canonicalBaseUrl (string)
+ *  - secret (UNIVERSE_WEBHOOK_SECRET)
+ *  - onNote (fn), onHappening (optional fn), onDigest (fn)
+ *  - isAllowedChannel (fn), defaultChannelId (string)
+ *  - getState (async fn => dashboard data)
+ */
 export function startServer({
   port = 3000,
   host = "127.0.0.1",
   canonicalBaseUrl = "",
   secret,
-  onNote,             // async ({ text, section, channelId, author, authorId, timestampISO })
-  onDigest,           // async () => void
-  isAllowedChannel,   // (id) => boolean
+  onNote,
+  onHappening,          // optional
+  onDigest,
+  isAllowedChannel,
   defaultChannelId,
-  getState            // async () => ({ tz, ready, botTag, uptimeMs, model, dailyCron, lastDigestAt, autosummary:{...}, channels:[{id,name,count24h,count7d}], errors:[] })
+  getState
 }) {
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, "http://localhost");
+
       // JSON health
       if (req.method === "GET" && url.pathname === "/health.json") {
         const st = await getState();
@@ -64,7 +85,7 @@ export function startServer({
         return res.end(JSON.stringify({ ok: true, nowISO: new Date().toISOString(), ...st }));
       }
 
-      // POST: /note (UI + API)
+      // POST: /note
       if (req.method === "POST" && url.pathname === "/note") {
         const body = await parseBody(req);
         const provided = req.headers["x-universe-secret"] || body.secret;
@@ -90,6 +111,7 @@ export function startServer({
           authorId: authorId || "dashboard",
           timestampISO: timestampISO || new Date().toISOString()
         });
+        // Redirect for browser forms; JSON for API clients
         if ((req.headers["accept"] || "").includes("application/json")) {
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(JSON.stringify({ ok: true }));
@@ -98,7 +120,7 @@ export function startServer({
         return res.end();
       }
 
-      // POST: /happening (UI + API)
+      // POST: /happening
       if (req.method === "POST" && url.pathname === "/happening") {
         const body = await parseBody(req);
         const provided = req.headers["x-universe-secret"] || body.secret;
@@ -106,28 +128,24 @@ export function startServer({
           res.writeHead(401, { "content-type": "application/json" });
           return res.end(JSON.stringify({ ok: false, error: "unauthorized" }));
         }
-        // Defer to index.js where addHappening is wired (through onNote? no, happening is handled there)
-        // We'll emit a tiny event via a query param handled upstream; simpler: reuse onNote with a distinct section?
-        // BUT we kept addHappening in index.js aggregation. Here we just forward the body to /happening handler via a callback if supplied.
-        // For simplicity, we piggyback on 'onNote' when channelId is optional; index.js renders Key Happenings separately.
-        // To avoid confusion, index.js wires this route by importing addHappening itself; we just accept and pass through via a custom event.
-        // We'll attach the body to req object and let index hook it? Not possible here. Instead, we'll emit a small internal event via global? Keep it simple:
-        // We include a no-op response and let index.js register a second server earlier? => Simpler: we expect index.js passed an onHappening via closure by binding onNote to a wrapper. 
-        // To keep this file generic, we treat /happening same as /note but with a default section "Key Happenings (from Chat)" and optional channelId.
         const { text, section, author, authorId, timestampISO, channelId } = body || {};
         if (!text || typeof text !== "string") {
           res.writeHead(400, { "content-type": "application/json" });
           return res.end(JSON.stringify({ ok: false, error: "missing text" }));
         }
-        // We'll call onNote with a special section that index.js later renders under "Key Happenings".
-        await onNote({
-          text,
-          section: section || (process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings"),
-          channelId: channelId || defaultChannelId,
-          author: author || "Dashboard",
-          authorId: authorId || "dashboard",
-          timestampISO: timestampISO || new Date().toISOString()
-        });
+        // Prefer dedicated handler if provided, else record it as a note under Key Happenings.
+        if (typeof onHappening === "function") {
+          await onHappening({ text, section, author, authorId, timestampISO, channelId });
+        } else {
+          await onNote({
+            text,
+            section: section || (process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings"),
+            channelId: channelId || defaultChannelId,
+            author: author || "Dashboard",
+            authorId: authorId || "dashboard",
+            timestampISO: timestampISO || new Date().toISOString()
+          });
+        }
         if ((req.headers["accept"] || "").includes("application/json")) {
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(JSON.stringify({ ok: true }));
@@ -136,7 +154,7 @@ export function startServer({
         return res.end();
       }
 
-      // POST: /digest (UI + API)
+      // POST: /digest
       if (req.method === "POST" && url.pathname === "/digest") {
         const body = await parseBody(req);
         const provided = req.headers["x-universe-secret"] || body.secret;
@@ -153,9 +171,10 @@ export function startServer({
         return res.end();
       }
 
-      // GET: dashboard HTML with controls
+      // GET: Dashboard HTML with controls (no meta refresh; JS-driven pauseable refresh)
       if (req.method === "GET" && url.pathname === "/") {
         const st = await getState();
+
         const rows = st.channels.map(ch => `
           <div class="card">
             <div class="card-head">
@@ -175,7 +194,6 @@ export function startServer({
 <html lang="en"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Purrfect Universe — Bridge</title>
-<meta http-equiv="refresh" content="30" />
 <style>
 :root{--bg:#0b0f14;--card:#0f141b;--muted:#8aa1b1;--text:#eaf2f8;--ok:#2ecc71;--warn:#f39c12;--bad:#e74c3c;--pill:#1f2a36;--accent:#6dc1ff;--border:#17202a;}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif}
@@ -198,85 +216,151 @@ input,textarea,select,button{font:inherit;border-radius:10px;border:1px solid va
 button{cursor:pointer}
 small.hint{color:var(--muted);display:block;margin-top:-4px}
 label{font-size:12px;color:var(--muted)}
-</style></head>
-<body><div class="wrapper">
-  <div class="header">
-    <h1>🐾 Purrfect Bridge — Dashboard</h1>
-    <span class="badge">${esc(st.tz)} • <span class="muted">${new Date().toLocaleString("en-GB",{hour12:false,timeZone:st.tz})}</span></span>
-  </div>
-
-  <div class="top">
-    <div class="card">
-      <h2>Runtime</h2>
-      <div class="row">
-        <div><span class="k">Bot</span><span class="v">${esc(st.botTag || "—")}</span></div>
-        <div><span class="k">Status</span><span class="v ${st.ready ? "ok" : "bad"}">${st.ready ? "Online" : "Offline"}</span></div>
-        <div><span class="k">Uptime</span><span class="v">${human(st.uptimeMs)}</span></div>
-        <div><span class="k">Model</span><span class="v">${esc(st.model || "—")}</span></div>
-      </div>
-      <hr/>
-      <div class="row">
-        <div><span class="k">Daily Cron</span><span class="v">${esc(st.dailyCron || "—")}</span></div>
-        <div><span class="k">Last Digest</span><span class="v">${st.lastDigestAt ? new Date(st.lastDigestAt).toLocaleString("en-GB",{hour12:false,timeZone:st.tz}) : "—"}</span></div>
-        <div><span class="k">Autosummary</span><span class="v">${st.autosummary.enabled ? "Enabled" : "Disabled"}</span></div>
-        <div><span class="k">Auto Config</span><span class="v">${esc(st.autosummary.cron || "—")} / ${st.autosummary.min} msgs / ${st.autosummary.lookback}h</span></div>
+.controls{display:flex;gap:8px;align-items:center}
+.toggle{padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:#121a22}
+</style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>🐾 Purrfect Bridge — Dashboard</h1>
+      <div class="controls">
+        <button id="refreshToggle" class="toggle" aria-pressed="false" title="Pause/Resume auto-refresh">⏯︎ Auto-refresh</button>
+        <span class="badge">${esc(st.tz)} • <span class="muted">${new Date().toLocaleString("en-GB",{hour12:false,timeZone:st.tz})}</span></span>
       </div>
     </div>
 
-    <div class="card">
-      <h2>Allowlisted Channels</h2>
-      <div class="grid">
-        <div><span class="k">Count</span><span class="v">${st.channels.length}</span></div>
-        <div><span class="k">Msgs (24h total)</span><span class="v">${st.channels.reduce((a,c)=>a+(c.count24h||0),0)}</span></div>
+    <div class="top">
+      <div class="card">
+        <h2>Runtime</h2>
+        <div class="row">
+          <div><span class="k">Bot</span><span class="v">${esc(st.botTag || "—")}</span></div>
+          <div><span class="k">Status</span><span class="v ${st.ready ? "ok" : "bad"}">${st.ready ? "Online" : "Offline"}</span></div>
+          <div><span class="k">Uptime</span><span class="v">${human(st.uptimeMs)}</span></div>
+          <div><span class="k">Model</span><span class="v">${esc(st.model || "—")}</span></div>
+        </div>
+        <hr/>
+        <div class="row">
+          <div><span class="k">Daily Cron</span><span class="v">${esc(st.dailyCron || "—")}</span></div>
+          <div><span class="k">Last Digest</span><span class="v">${st.lastDigestAt ? new Date(st.lastDigestAt).toLocaleString("en-GB",{hour12:false,timeZone:st.tz}) : "—"}</span></div>
+          <div><span class="k">Autosummary</span><span class="v">${st.autosummary.enabled ? "Enabled" : "Disabled"}</span></div>
+          <div><span class="k">Auto Config</span><span class="v">${esc(st.autosummary.cron || "—")} / ${st.autosummary.min} msgs / ${st.autosummary.lookback}h</span></div>
+        </div>
       </div>
-      <hr/>
-      <div><span class="k">IDs</span><span class="v muted">${esc(st.channels.map(c=>c.id).join(", ") || "—")}</span></div>
-      <hr/>
-      <div><span class="k">Canonical</span><span class="v">${esc(canonicalBaseUrl || "—")}</span></div>
+
+      <div class="card">
+        <h2>Allowlisted Channels</h2>
+        <div class="grid">
+          <div><span class="k">Count</span><span class="v">${st.channels.length}</span></div>
+          <div><span class="k">Msgs (24h total)</span><span class="v">${st.channels.reduce((a,c)=>a+(c.count24h||0),0)}</span></div>
+        </div>
+        <hr/>
+        <div><span class="k">IDs</span><span class="v muted">${esc(st.channels.map(c=>c.id).join(", ") || "—")}</span></div>
+        <hr/>
+        <div><span class="k">Canonical</span><span class="v">${esc(canonicalBaseUrl || "—")}</span></div>
+      </div>
     </div>
+
+    <h2>Channel Activity</h2>
+    <div class="row">${rows || '<div class="muted">No channels</div>'}</div>
+
+    <h2>Post from Dashboard</h2>
+    <div id="forms" class="card">
+      <form method="post" action="/note">
+        <label>Secret <small class="hint">Use your UNIVERSE_WEBHOOK_SECRET</small></label>
+        <input name="secret" type="password" placeholder="••••••••"/>
+        <label>Channel ID <small class="hint">Defaults to summary channel if empty</small></label>
+        <input name="channelId" placeholder="${esc(defaultChannelId || "")}"/>
+        <label>Section</label>
+        <input name="section" placeholder="Manual Notes"/>
+        <label>Text</label>
+        <textarea name="text" rows="3" placeholder="What should be noted?"></textarea>
+        <button type="submit">Post /note</button>
+      </form>
+      <hr/>
+      <form method="post" action="/happening">
+        <label>Secret</label>
+        <input name="secret" type="password" placeholder="••••••••"/>
+        <label>Section</label>
+        <input name="section" placeholder="${esc(process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings")}"/>
+        <label>Text</label>
+        <textarea name="text" rows="3" placeholder="Key happening to surface in digests"></textarea>
+        <button type="submit">Post /happening</button>
+      </form>
+      <hr/>
+      <form method="post" action="/digest">
+        <label>Secret</label>
+        <input name="secret" type="password" placeholder="••••••••"/>
+        <button type="submit">Trigger /digest now</button>
+      </form>
+    </div>
+
+    <h2>Recent Errors</h2>
+    <div class="card"><ul>${errs}</ul></div>
+
+    <footer style="margin-top:22px" class="muted">
+      Auto-refresh every 30s (pauses while typing or when forms are in view) • <a href="/health.json" class="muted">/health.json</a> • Canonical: ${esc(canonicalBaseUrl || "—")}
+    </footer>
   </div>
 
-  <h2>Channel Activity</h2>
-  <div class="row">${rows || '<div class="muted">No channels</div>'}</div>
+  <script>
+  (function(){
+    // Auto-refresh controller (no meta tag; JS-only, pause-aware)
+    var REFRESH_MS = 30000;
+    var paused = false;
+    var byFocus = false;
+    var byVisibility = false;
 
-  <h2>Post from Dashboard</h2>
-  <div class="card">
-    <form method="post" action="/note">
-      <label>Secret <small class="hint">Use your UNIVERSE_WEBHOOK_SECRET</small></label>
-      <input name="secret" type="password" placeholder="••••••••"/>
-      <label>Channel ID <small class="hint">Defaults to summary channel if empty</small></label>
-      <input name="channelId" placeholder="${esc(defaultChannelId || "")}"/>
-      <label>Section</label>
-      <input name="section" placeholder="Manual Notes"/>
-      <label>Text</label>
-      <textarea name="text" rows="3" placeholder="What should be noted?"></textarea>
-      <button type="submit">Post /note</button>
-    </form>
-    <hr/>
-    <form method="post" action="/happening">
-      <label>Secret</label>
-      <input name="secret" type="password" placeholder="••••••••"/>
-      <label>Section</label>
-      <input name="section" placeholder="${esc(process.env.KEYHAPPENINGS_SECTION_NAME || "Key Happenings")}"/>
-      <label>Text</label>
-      <textarea name="text" rows="3" placeholder="Key happening to surface in digests"></textarea>
-      <button type="submit">Post /happening</button>
-    </form>
-    <hr/>
-    <form method="post" action="/digest">
-      <label>Secret</label>
-      <input name="secret" type="password" placeholder="••••••••"/>
-      <button type="submit">Trigger /digest now</button>
-    </form>
-  </div>
+    var toggleBtn = document.getElementById('refreshToggle');
+    function updateToggleUI(){
+      toggleBtn.setAttribute('aria-pressed', String(paused));
+      toggleBtn.textContent = (paused ? '▶︎ Resume auto-refresh' : '⏸︎ Pause auto-refresh');
+    }
+    toggleBtn.addEventListener('click', function(){
+      paused = !paused;
+      updateToggleUI();
+    });
+    updateToggleUI();
 
-  <h2>Recent Errors</h2>
-  <div class="card"><ul>${errs}</ul></div>
+    // Pause when any input/textarea/select/button is focused
+    document.addEventListener('focusin', function(e){
+      if (e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) {
+        byFocus = true; paused = true; updateToggleUI();
+      }
+    });
+    document.addEventListener('focusout', function(){
+      byFocus = false;
+      if (!byVisibility) { paused = false; updateToggleUI(); }
+    });
 
-  <footer style="margin-top:22px" class="muted">
-    Auto-refresh 30s • <a href="/health.json" class="muted">/health.json</a> • Canonical: ${esc(canonicalBaseUrl || "—")}
-  </footer>
-</div></body></html>`;
+    // Pause when the forms card occupies >=50% of viewport
+    var formsEl = document.getElementById('forms');
+    if ('IntersectionObserver' in window && formsEl) {
+      var io = new IntersectionObserver(function(entries){
+        var entry = entries[0];
+        byVisibility = entry && entry.intersectionRatio >= 0.5;
+        if (byVisibility) paused = true;
+        else if (!byFocus) paused = false;
+        updateToggleUI();
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+      io.observe(formsEl);
+    } else {
+      // Fallback: simple scroll heuristic
+      window.addEventListener('scroll', function(){
+        var r = formsEl.getBoundingClientRect();
+        byVisibility = (r.top < window.innerHeight * 0.2) && (r.bottom > window.innerHeight * 0.2);
+        if (byVisibility) paused = true; else if (!byFocus) paused = false;
+        updateToggleUI();
+      });
+    }
+
+    // Refresh loop
+    setInterval(function(){
+      if (!paused) { window.location.reload(); }
+    }, REFRESH_MS);
+  })();
+  </script>
+</body></html>`;
 
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         return res.end(html);
