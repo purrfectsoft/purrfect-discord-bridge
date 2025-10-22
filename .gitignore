@@ -30,7 +30,8 @@ data/keyhappenings.json
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 *.swp
 *.tmp
 *.bak
