@@ -33,7 +33,7 @@ export function render_runtime_card(st) {
         </div>
         <div>
           <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Status</dt>
-          <dd class="mt-1 text-base font-semibold ${st.ready ? "text-emerald-400" : "text-rose-400"}">${st.ready ? "Online" : "Offline"}</dd>
+          <dd class="mt-1 text-base font-semibold ${st.ready ? "text-brand-emerald-400" : "text-rose-400"}">${st.ready ? "Online" : "Offline"}</dd>
         </div>
         <div>
           <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Uptime</dt>
@@ -127,30 +127,30 @@ export function render_forms({ defaultChannelId } = {}) {
     <div id="forms" class="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20 space-y-6">
       <form method="post" action="/note" class="grid gap-3">
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret <small class="ml-1 text-[11px] font-normal normal-case text-slate-500">Use your UNIVERSE_WEBHOOK_SECRET</small></label>
-        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"/>
+        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Channel ID <small class="ml-1 text-[11px] font-normal normal-case text-slate-500">Defaults to summary channel if empty</small></label>
-        <input name="channelId" placeholder="${esc(defaultChannelId || "")}" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"/>
+        <input name="channelId" placeholder="${esc(defaultChannelId || "")}" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Section</label>
-        <input name="section" placeholder="Manual Notes" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"/>
+        <input name="section" placeholder="Manual Notes" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Text</label>
-        <textarea name="text" rows="3" placeholder="What should be noted?" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"></textarea>
-        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-500/30 transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/60">Post /note</button>
+        <textarea name="text" rows="3" placeholder="What should be noted?" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"></textarea>
+        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-sky-500/30 transition hover:bg-brand-sky-400 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/60">Post /note</button>
       </form>
       <hr class="border-slate-800"/>
       <form method="post" action="/happening" class="grid gap-3">
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret</label>
-        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"/>
+        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Section</label>
-        <input name="section" placeholder="${happeningPlaceholder}" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"/>
+        <input name="section" placeholder="${happeningPlaceholder}" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Text</label>
-        <textarea name="text" rows="3" placeholder="Key happening to surface in digests" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"></textarea>
-        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition hover:bg-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/60">Post /happening</button>
+        <textarea name="text" rows="3" placeholder="Key happening to surface in digests" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"></textarea>
+        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-purple-500/30 transition hover:bg-brand-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/60">Post /happening</button>
       </form>
       <hr class="border-slate-800"/>
       <form method="post" action="/digest" class="grid gap-3">
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Secret</label>
-        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"/>
-        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/60">Trigger /digest now</button>
+        <input name="secret" type="password" placeholder="••••••••" class="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
+        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-emerald-500/30 transition hover:bg-brand-emerald-400 focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/60">Trigger /digest now</button>
       </form>
     </div>
   `;
@@ -171,7 +171,32 @@ export function render_dashboard(state, options = {}) {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Purrfect Universe — Bridge</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            sky: {
+              400: "#38bdf8",
+              500: "#0ea5e9"
+            },
+            purple: {
+              400: "#c084fc",
+              500: "#a855f7"
+            },
+            emerald: {
+              400: "#34d399",
+              500: "#10b981"
+            }
+          }
+        }
+      }
+    },
+    plugins: [tailwindcssForms, tailwindcssTypography]
+  };
+  </script>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100">
   <div class="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-10">

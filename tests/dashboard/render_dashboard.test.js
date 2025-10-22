@@ -15,7 +15,7 @@ test("render_runtime_card includes Tailwind classes", () => {
     tz: "UTC"
   });
   assert.ok(html.includes("bg-slate-900/80"));
-  assert.ok(html.includes("text-emerald-400"));
+  assert.ok(html.includes("text-brand-emerald-400"));
 });
 
 test("render_channel_grid handles channels", () => {
@@ -51,7 +51,8 @@ test("render_dashboard composes sections", () => {
     errors: ["Boom", "Kapow"]
   };
   const html = render_dashboard(sample, { canonicalBaseUrl: "https://example.com", defaultChannelId: "999" });
-  assert.ok(html.includes("cdn.tailwindcss.com"));
+  assert.ok(html.includes("cdn.tailwindcss.com?plugins=forms,typography"));
+  assert.ok(html.includes("tailwind.config"));
   assert.ok(html.includes("Channel Activity"));
   assert.ok(html.includes("Recent Errors"));
   assert.ok(html.includes("Boom"));
