@@ -158,7 +158,7 @@ export function render_forms({ defaultChannelId } = {}) {
       </div>
       <div id="formAnnouncer" class="sr-only" role="status" aria-live="polite"></div>
       <div class="grid gap-6 lg:grid-cols-3">
-        <form id="noteForm" method="post" action="/note" hx-post="/note" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
+        <form id="noteForm" method="post" action="/note" hx-post="/note" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::before-request="window.dashboardToggleFormLoading(this,true)" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
           <div class="space-y-1">
             <h3 class="text-sm font-semibold text-slate-100">Add /note</h3>
             <p class="text-xs text-slate-400">Capture quick notes straight into the digest stream.</p>
@@ -169,9 +169,15 @@ export function render_forms({ defaultChannelId } = {}) {
           <input name="section" placeholder="Manual Notes" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"/>
           <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Text</label>
           <textarea name="text" rows="3" placeholder="What should be noted?" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-sky-500 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/40"></textarea>
-          <button type="submit" class="mt-auto inline-flex items-center justify-center rounded-2xl bg-brand-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-sky-500/30 transition hover:bg-brand-sky-400 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/60">Post /note</button>
+          <button type="submit" class="mt-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-sky-500/30 transition hover:bg-brand-sky-400 focus:outline-none focus:ring-2 focus:ring-brand-sky-500/60 data-[loading=true]:cursor-not-allowed data-[loading=true]:opacity-80" data-dashboard-button>
+            <svg class="hidden h-4 w-4 animate-spin" data-dashboard-spinner viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle class="opacity-25" cx="12" cy="12" r="10"></circle>
+              <path class="opacity-75" d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+            </svg>
+            <span data-dashboard-label>Post /note</span>
+          </button>
         </form>
-        <form id="happeningForm" method="post" action="/happening" hx-post="/happening" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
+        <form id="happeningForm" method="post" action="/happening" hx-post="/happening" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::before-request="window.dashboardToggleFormLoading(this,true)" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
           <div class="space-y-1">
             <h3 class="text-sm font-semibold text-slate-100">Add /happening</h3>
             <p class="text-xs text-slate-400">Highlight noteworthy updates for the automated digest.</p>
@@ -180,14 +186,26 @@ export function render_forms({ defaultChannelId } = {}) {
           <input name="section" placeholder="${happeningPlaceholder}" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-purple-500 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/40"/>
           <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">Text</label>
           <textarea name="text" rows="3" placeholder="Key happening to surface in digests" class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-purple-500 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/40"></textarea>
-          <button type="submit" class="mt-auto inline-flex items-center justify-center rounded-2xl bg-brand-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-purple-500/30 transition hover:bg-brand-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/60">Post /happening</button>
+          <button type="submit" class="mt-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-purple-500/30 transition hover:bg-brand-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-purple-500/60 data-[loading=true]:cursor-not-allowed data-[loading=true]:opacity-80" data-dashboard-button>
+            <svg class="hidden h-4 w-4 animate-spin" data-dashboard-spinner viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle class="opacity-25" cx="12" cy="12" r="10"></circle>
+              <path class="opacity-75" d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+            </svg>
+            <span data-dashboard-label>Post /happening</span>
+          </button>
         </form>
-        <form id="digestForm" method="post" action="/digest" hx-post="/digest" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
+        <form id="digestForm" method="post" action="/digest" hx-post="/digest" hx-target="#formAnnouncer" hx-swap="innerText" hx-include="#sharedSecretField" hx-on::before-request="window.dashboardToggleFormLoading(this,true)" hx-on::after-request="window.dashboardHandleForm(event,this)" class="flex flex-col gap-4 rounded-2xl border border-slate-800/60 bg-slate-950/50 p-5">
           <div class="space-y-1">
             <h3 class="text-sm font-semibold text-slate-100">Trigger /digest</h3>
             <p class="text-xs text-slate-400">Manually kick off a digest run when you need it.</p>
           </div>
-          <button type="submit" class="mt-auto inline-flex items-center justify-center rounded-2xl bg-brand-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-emerald-500/30 transition hover:bg-brand-emerald-400 focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/60">Trigger /digest now</button>
+          <button type="submit" class="mt-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-emerald-500/30 transition hover:bg-brand-emerald-400 focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/60 data-[loading=true]:cursor-not-allowed data-[loading=true]:opacity-80" data-dashboard-button>
+            <svg class="hidden h-4 w-4 animate-spin" data-dashboard-spinner viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle class="opacity-25" cx="12" cy="12" r="10"></circle>
+              <path class="opacity-75" d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+            </svg>
+            <span data-dashboard-label>Trigger /digest now</span>
+          </button>
         </form>
       </div>
     </div>
