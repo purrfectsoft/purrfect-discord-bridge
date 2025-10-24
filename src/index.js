@@ -227,7 +227,12 @@ async function summarizeChannel(chId, hoursDefault) {
   // Global “Key Happenings”
   const happeningsBlock = renderHappenings({ sinceISO: start.toISO(), untilISO: end.toISO() });
 
-  return { title: `#${ch?.name || chId}`, content: (out === "No Discord activity found in the selected window." ? '' : out) + footer + notesSection + happeningsBlock };
+  const isOutEmpty = out === "No Discord activity found in the selected window.";
+
+
+  const finalOutput = isOutEmpty ? '' : out + footer;
+
+  return { title: `#${ch?.name || chId}`, content: finalOutput + notesSection + happeningsBlock };
 }
 
 // Multi-channel digest (cron/webhook)
