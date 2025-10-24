@@ -249,7 +249,7 @@ async function runDigestOnce() {
     const sections = [];
     for (const chId of Array.from(allowed)) {
       const result = await summarizeChannel(chId, hours);
-      if (!result) continue;
+      if (!result || /^\s*$/.test(result.content)) continue;
       sections.push(`**${result.title}**\n${result.content}`);
     }
 
@@ -380,7 +380,7 @@ if (autosummaryEnabled) {
         if (msgs.length < autosummaryMin) continue;
 
         const result = await summarizeChannel(chId, hours);
-        if (!result) continue;
+        if (!result || /^\s*$/.test(result.content)) continue;
 
         const targetId = autosummaryTarget || chId;
         const targetChannel = await client.channels.fetch(targetId).catch(() => null);
