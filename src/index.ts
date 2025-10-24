@@ -279,7 +279,9 @@ async function summarizeChannel(
 			untilISO: end.toISO(),
 		});
 	}
-	if (!msgs.length) return null;
+	if (!msgs.length) {
+		return null;
+	}
 
 	const slice = msgs.slice(-maxContext);
 	const summary = await summarizeMessages({
@@ -288,6 +290,11 @@ async function summarizeChannel(
 		hours,
 		tz,
 	});
+
+	if (summary === "#PleaseDeleteMe") {
+		return null;
+	}
+
 	const channel = await fetchTextChannel(chId);
 	const startISO = start.toISO();
 	const endISO = end.toISO();
@@ -448,7 +455,7 @@ client.on("interactionCreate", async (interaction) => {
 		const result = await summarizeChannel(chId, hours);
 		if (!result) {
 			await interaction.editReply({
-				content: "No Discord activity found in the selected window.",
+				content: "#PleaseDeleteMe",
 			});
 			return;
 		}

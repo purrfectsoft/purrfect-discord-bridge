@@ -24,7 +24,7 @@ const systemPrompt = `You are Purrfect Universe's diligent AI secretary.
 
 GROUND RULES (IMPORTANT):
 - Do NOT fabricate or guess. Only summarize what is present.
-- If there are absolutely no messages provided, reply exactly: "No Discord activity found in the selected window."
+- If there are absolutely no messages provided, reply exactly: "#PleaseDeleteMe"
 - If there ARE messages but none are clearly actionable or project-related, include a **Miscellaneous** section for general chatter/links/reactions.
 - Only include owners, dates, or decisions when explicitly stated.
 - Prefer concise bullets. Aggregate duplicate points. Summaries should be readable by busy leadership.
@@ -47,7 +47,7 @@ export async function summarizeMessages({
 	tz,
 }: SummarizeMessagesInput): Promise<string> {
 	if (!messages?.length) {
-		return "No Discord activity found in the selected window.";
+		return "#PleaseDeleteMe";
 	}
 
 	const now = new Date();
@@ -78,9 +78,7 @@ export async function summarizeMessages({
 		],
 	});
 
-	const out =
-		resp.choices?.[0]?.message?.content?.trim() ??
-		"No Discord activity found in the selected window.";
+	const out = resp.choices?.[0]?.message?.content?.trim() ?? "#PleaseDeleteMe";
 
 	return out.length
 		? out
