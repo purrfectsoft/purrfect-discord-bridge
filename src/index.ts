@@ -291,9 +291,9 @@ async function summarizeChannel(
 		tz,
 	});
 
-	if (summary === "#PleaseDeleteMe") {
-		return null;
-	}
+	// if (summary === "#PleaseDeleteMe") {
+	// 	return null;
+	// }
 
 	const channel = await fetchTextChannel(chId);
 	const startISO = start.toISO();
