@@ -1,6 +1,8 @@
+// src/lib/stats.js
 import { ChannelType } from "discord.js";
 import { loadWindow } from "../storage.js";
 
+// -------------- existing helpers (safe to keep) --------------
 function mapChannelType(channel) {
   if (!channel) return "other";
   switch (channel.type) {
@@ -60,11 +62,12 @@ function authorDisplayName(guild, authorId, fallback) {
   return fallback || authorId;
 }
 
+// -------------- collectStats (keep or overwrite with this identical version) --------------
 export async function collectStats(guild, {
   since,
   until,
-  limit = 10, // eslint-disable-line no-unused-vars
-  detail = "summary", // eslint-disable-line no-unused-vars
+  limit = 10, // unused here but kept for signature stability
+  detail = "summary", // unused here
   allowedChannelIds = []
 } = {}) {
   const sinceDate = ensureDate(since, new Date(0));
@@ -74,11 +77,7 @@ export async function collectStats(guild, {
 
   await guild.channels.fetch();
   await guild.roles.fetch().catch(() => null);
-  try {
-    await guild.members.fetch({ withPresences: false });
-  } catch {
-    // ignore member fetch failures (likely due to limited intents)
-  }
+  try { await guild.members.fetch({ withPresences: false }); } catch {}
 
   const memberInfo = formatMemberBreakdown(guild);
   const channelCounts = countChannels(guild);
@@ -110,13 +109,9 @@ export async function collectStats(guild, {
         const agg = authorAggregate.get(message.authorId);
         agg.messageCount += 1;
         agg.channels.set(channelId, (agg.channels.get(channelId) || 0) + 1);
-        if (!agg.displayName) {
-          agg.displayName = message.author || null;
-        }
+        if (!agg.displayName) agg.displayName = message.author || null;
       }
-      if (message.timestamp) {
-        lastMessageAt = message.timestamp;
-      }
+      if (message.timestamp) lastMessageAt = message.timestamp;
     }
     totalMessages += logs.length;
     if (!logs.length) emptyChannels += 1;
@@ -137,10 +132,7 @@ export async function collectStats(guild, {
     let topChannelId = null;
     let topChannelCount = 0;
     for (const [chId, count] of entry.channels.entries()) {
-      if (count > topChannelCount) {
-        topChannelCount = count;
-        topChannelId = chId;
-      }
+      if (count > topChannelCount) { topChannelCount = count; topChannelId = chId; }
     }
     const topChannel = topChannelId ? guild.channels.cache.get(topChannelId) : null;
     return {
@@ -153,11 +145,7 @@ export async function collectStats(guild, {
   }).sort((a, b) => b.messageCount - a.messageCount || a.displayName.localeCompare(b.displayName));
 
   const roles = Array.from(guild.roles.cache.values())
-    .map(role => ({
-      id: role.id,
-      name: role.name,
-      memberCount: role.members ? role.members.size : 0
-    }))
+    .map(role => ({ id: role.id, name: role.name, memberCount: role.members ? role.members.size : 0 }))
     .sort((a, b) => b.memberCount - a.memberCount || a.name.localeCompare(b.name));
 
   const newMembers = [];
@@ -199,24 +187,15 @@ export async function collectStats(guild, {
   };
 }
 
+// -------------- trends helpers --------------
 function safePct(current, previous) {
-  if (previous === 0) {
-    if (current === 0) return 0;
-    return null;
-  }
+  if (previous === 0) return current === 0 ? 0 : null;
   const delta = current - previous;
   return (delta / previous) * 100;
 }
-
 function buildDelta(current, previous) {
-  return {
-    current,
-    previous,
-    delta: current - previous,
-    pct: safePct(current, previous)
-  };
+  return { current, previous, delta: current - previous, pct: safePct(current, previous) };
 }
-
 function indexById(list, key) {
   const map = new Map();
   for (const entry of list || []) {
@@ -226,6 +205,7 @@ function indexById(list, key) {
   return map;
 }
 
+// -------------- collectTrends --------------
 export async function collectTrends(guild, {
   since,
   until,
@@ -246,17 +226,8 @@ export async function collectTrends(guild, {
   const prevSinceDate = new Date(prevSinceMs);
   const prevUntilDate = new Date(prevUntilMs);
 
-  const current = await collectStats(guild, {
-    since: sinceDate,
-    until: untilDate,
-    allowedChannelIds
-  });
-
-  const previous = await collectStats(guild, {
-    since: prevSinceDate,
-    until: prevUntilDate,
-    allowedChannelIds
-  });
+  const current = await collectStats(guild, { since: sinceDate, until: untilDate, allowedChannelIds });
+  const previous = await collectStats(guild, { since: prevSinceDate, until: prevUntilDate, allowedChannelIds });
 
   const totals = {
     messages: buildDelta(current.summary.activity.messages, previous.summary.activity.messages),
@@ -283,12 +254,8 @@ export async function collectTrends(guild, {
       pct: safePct(currentCount, previousCount)
     });
   }
-  channels.sort((a, b) => {
-    const diff = Math.abs(b.delta) - Math.abs(a.delta);
-    if (diff !== 0) return diff;
-    return (a.name || "").localeCompare(b.name || "");
-  });
-  const limitedChannels = channels.slice(0, Math.max(0, Math.min(maxList, channels.length)));
+  channels.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || (a.name || "").localeCompare(b.name || ""));
+  const limitedChannels = channels.slice(0, Math.min(maxList, channels.length));
 
   const currentAuthors = indexById(current.topAuthors, "userId");
   const previousAuthors = indexById(previous.topAuthors, "userId");
@@ -310,22 +277,13 @@ export async function collectTrends(guild, {
       topChannelName: curr?.topChannelName || prev?.topChannelName || undefined
     });
   }
-  authors.sort((a, b) => {
-    const diff = Math.abs(b.delta) - Math.abs(a.delta);
-    if (diff !== 0) return diff;
-    return (a.displayName || "").localeCompare(b.displayName || "");
-  });
-  const limitedAuthors = authors.slice(0, Math.max(0, Math.min(maxList, authors.length)));
+  authors.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || (a.displayName || "").localeCompare(b.displayName || ""));
+  const limitedAuthors = authors.slice(0, Math.min(maxList, authors.length));
 
   const notes = new Set();
-  for (const note of current.notes || []) notes.add(note);
-  for (const note of previous.notes || []) notes.add(note);
-  if (previous.notes?.some(n => /no stored logs/i.test(n))) {
-    notes.add("Partial data: previous window not fully logged.");
-  }
-  if (prevUntilMs === 0 && sinceMs === 0) {
-    notes.add("Previous window unavailable for 'all' range.");
-  }
+  for (const n of current.notes || []) notes.add(n);
+  for (const n of previous.notes || []) notes.add(n);
+  if (prevUntilMs === 0 && sinceMs === 0) notes.add("Previous window unavailable for 'all' range.");
 
   return {
     since: sinceDate.toISOString(),

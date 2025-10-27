@@ -1,17 +1,21 @@
+// src/lib/formatters.js
 import { EmbedBuilder } from "discord.js";
 
 function formatDate(iso) {
   if (!iso) return "unknown";
-  try {
-    return new Date(iso).toLocaleString("en-GB", { hour12: false });
-  } catch {
-    return iso;
-  }
+  try { return new Date(iso).toLocaleString("en-GB", { hour12: false }); }
+  catch { return iso; }
 }
-
 function formatNumber(num) {
   if (num === null || num === undefined) return "unknown";
   return new Intl.NumberFormat("en-GB").format(num);
+}
+
+function csvEscape(value) {
+  if (value === undefined || value === null) return "";
+  const str = String(value);
+  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+  return str;
 }
 
 export function toMarkdownMap(guild, tree) {
@@ -56,15 +60,6 @@ export function toJsonMap(tree) {
     categories: tree.categories,
     truncated: tree.truncated
   }, null, 2);
-}
-
-function csvEscape(value) {
-  if (value === undefined || value === null) return "";
-  const str = String(value);
-  if (/[",\n]/.test(str)) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
 }
 
 export function toCsvMap(tree) {
@@ -114,7 +109,6 @@ function formatTopAuthor(entry) {
 }
 
 const EMPTY_FIELD = "\u200b";
-
 function splitFields(lines) {
   const chunks = [];
   let current = [];
@@ -132,25 +126,13 @@ function splitFields(lines) {
   return chunks;
 }
 
-const signedNumberFormatter = new Intl.NumberFormat("en-GB", {
-  signDisplay: "always",
-  maximumFractionDigits: 0
-});
-
-const pctFormatter = new Intl.NumberFormat("en-GB", {
-  signDisplay: "always",
-  maximumFractionDigits: 1,
-  minimumFractionDigits: 0
-});
-
+const signedNumberFormatter = new Intl.NumberFormat("en-GB", { signDisplay: "always", maximumFractionDigits: 0 });
+const pctFormatter = new Intl.NumberFormat("en-GB", { signDisplay: "always", maximumFractionDigits: 1, minimumFractionDigits: 0 });
 function formatSignedNumber(value) {
-  if (!Number.isFinite(value)) {
-    return value > 0 ? "+∞" : value < 0 ? "-∞" : "0";
-  }
+  if (!Number.isFinite(value)) return value > 0 ? "+∞" : value < 0 ? "-∞" : "0";
   if (value === 0) return "0";
   return signedNumberFormatter.format(value);
 }
-
 function formatPctValue(value) {
   if (value === null || value === undefined) return "n/a";
   if (!Number.isFinite(value)) return value > 0 ? "+∞%" : value < 0 ? "-∞%" : "0%";
@@ -166,9 +148,7 @@ export function buildStatsEmbeds(guild, stats, { detail = "summary", limit = 10 
     .setDescription(`Range: ${rangeLine}\nActivity based on stored logs from allowlisted channels.`)
     .setTimestamp(new Date(stats.until));
 
-  if (stats.notes?.length) {
-    baseEmbed.setFooter({ text: stats.notes.join(" | ") });
-  }
+  if (stats.notes?.length) baseEmbed.setFooter({ text: stats.notes.join(" | ") });
 
   if (detail === "summary") {
     baseEmbed.addFields(
@@ -195,8 +175,8 @@ export function buildStatsEmbeds(guild, stats, { detail = "summary", limit = 10 
   if (detail === "channels") {
     const lines = stats.channels.slice(0, limit).map(formatChannelLine);
     baseEmbed.setTitle(`Channel activity – ${guild.name}`);
-    const chunks = splitFields(lines.length ? lines : ["No channel activity recorded in this range."]);
-    chunks.forEach((chunk, idx) => baseEmbed.addFields({ name: idx === 0 ? "Top channels" : EMPTY_FIELD, value: chunk }));
+    splitFields(lines.length ? lines : ["No channel activity recorded in this range."])
+      .forEach((chunk, idx) => baseEmbed.addFields({ name: idx === 0 ? "Top channels" : EMPTY_FIELD, value: chunk }));
     embeds.push(baseEmbed);
     return embeds;
   }
@@ -204,8 +184,8 @@ export function buildStatsEmbeds(guild, stats, { detail = "summary", limit = 10 
   if (detail === "roles") {
     const lines = stats.roles.map(r => `${r.name}: ${formatNumber(r.memberCount)} members`);
     baseEmbed.setTitle(`Role distribution – ${guild.name}`);
-    const chunks = splitFields(lines.length ? lines : ["No role data available."]);
-    chunks.forEach((chunk, idx) => baseEmbed.addFields({ name: idx === 0 ? "Roles" : EMPTY_FIELD, value: chunk }));
+    splitFields(lines.length ? lines : ["No role data available."])
+      .forEach((chunk, idx) => baseEmbed.addFields({ name: idx === 0 ? "Roles" : EMPTY_FIELD, value: chunk }));
     embeds.push(baseEmbed);
     return embeds;
   }
@@ -213,8 +193,8 @@ export function buildStatsEmbeds(guild, stats, { detail = "summary", limit = 10 
   if (detail === "members") {
     const lines = stats.members.newMembers.map(m => `${m.displayName} (joined ${formatDate(m.joinedAt)})`);
     baseEmbed.setTitle(`Recent members – ${guild.name}`);
-    const chunks = splitFields(lines.length ? lines : ["No member join data available for this range."]);
-    chunks.forEach((chunk, idx) => baseEmbed.addFields({ name: idx === 0 ? "New members" : EMPTY_FIELD, value: chunk }));
+    splitFields(lines.length ? lines : ["No member join data available for this range."])
+      .forEach((chunk, idx) => baseEmbed.addFields({ name: idx === 0 ? "New members" : EMPTY_FIELD, value: chunk }));
     embeds.push(baseEmbed);
     return embeds;
   }
@@ -222,8 +202,8 @@ export function buildStatsEmbeds(guild, stats, { detail = "summary", limit = 10 
   if (detail === "top") {
     const lines = stats.topAuthors.slice(0, limit).map(formatTopAuthor);
     baseEmbed.setTitle(`Top contributors – ${guild.name}`);
-    const chunks = splitFields(lines.length ? lines : ["No author activity recorded in this range."]);
-    chunks.forEach((chunk, idx) => baseEmbed.addFields({ name: idx === 0 ? "Members" : EMPTY_FIELD, value: chunk }));
+    splitFields(lines.length ? lines : ["No author activity recorded in this range."])
+      .forEach((chunk, idx) => baseEmbed.addFields({ name: idx === 0 ? "Members" : EMPTY_FIELD, value: chunk }));
     embeds.push(baseEmbed);
     return embeds;
   }
@@ -232,6 +212,7 @@ export function buildStatsEmbeds(guild, stats, { detail = "summary", limit = 10 
   return embeds;
 }
 
+// ---- Trends embeds ----
 export function buildTrendsEmbeds(guild, trends, { limit = 10 } = {}) {
   const rangeDescription = `Prev: ${formatDate(trends.prevSince)} → ${formatDate(trends.prevUntil)}\nCurr: ${formatDate(trends.since)} → ${formatDate(trends.until)}`;
   const baseEmbed = new EmbedBuilder()
@@ -239,9 +220,7 @@ export function buildTrendsEmbeds(guild, trends, { limit = 10 } = {}) {
     .setDescription(rangeDescription)
     .setTimestamp(new Date(trends.until));
 
-  if (trends.notes?.length) {
-    baseEmbed.setFooter({ text: trends.notes.join(" | ") });
-  }
+  if (trends.notes?.length) baseEmbed.setFooter({ text: trends.notes.join(" | ") });
 
   const totalsLines = [
     `Messages: ${formatNumber(trends.totals.messages.current)} (Δ ${formatSignedNumber(trends.totals.messages.delta)} / ${formatPctValue(trends.totals.messages.pct)})`,
@@ -250,26 +229,35 @@ export function buildTrendsEmbeds(guild, trends, { limit = 10 } = {}) {
   ];
   baseEmbed.addFields({ name: "Totals", value: totalsLines.join("\n"), inline: true });
 
-  const channelLines = trends.channels
+  const channelLines = (trends.channels || [])
     .slice(0, Math.max(limit, 0))
-    .map(entry => {
-      const name = entry.name ? `#${entry.name}` : entry.id;
-      return `${name}: ${formatSignedNumber(entry.delta)} (${formatPctValue(entry.pct)})`;
-    });
-  const channelChunks = splitFields(channelLines.length ? channelLines : ["No channel movers found in this range."]);
-  channelChunks.forEach((chunk, idx) => {
-    baseEmbed.addFields({ name: idx === 0 ? "Top channel movers" : EMPTY_FIELD, value: chunk });
-  });
+    .map(e => `${e.name ? `#${e.name}` : e.id}: ${formatSignedNumber(e.delta)} (${formatPctValue(e.pct)})`);
+  splitFields(channelLines.length ? channelLines : ["No channel movers found in this range."])
+    .forEach((chunk, i) => baseEmbed.addFields({ name: i === 0 ? "Top channel movers" : EMPTY_FIELD, value: chunk }));
 
-  const authorLines = trends.authors
+  const authorLines = (trends.authors || [])
     .slice(0, Math.max(limit, 0))
-    .map(entry => `${entry.displayName || entry.userId}: ${formatSignedNumber(entry.delta)} (${formatPctValue(entry.pct)})`);
-  const authorChunks = splitFields(authorLines.length ? authorLines : ["No contributor movers found in this range."]);
-  authorChunks.forEach((chunk, idx) => {
-    baseEmbed.addFields({ name: idx === 0 ? "Top contributor movers" : EMPTY_FIELD, value: chunk });
-  });
+    .map(e => `${e.displayName || e.userId}: ${formatSignedNumber(e.delta)} (${formatPctValue(e.pct)})`);
+  splitFields(authorLines.length ? authorLines : ["No contributor movers found in this range."])
+    .forEach((chunk, i) => baseEmbed.addFields({ name: i === 0 ? "Top contributor movers" : EMPTY_FIELD, value: chunk }));
 
   return [baseEmbed];
+}
+
+// ---- Trends CSV ----
+export function toCsvTrendsChannels(trends) {
+  const rows = [["channelId", "channelName", "current", "previous", "delta", "pct"]];
+  for (const e of trends.channels || []) {
+    rows.push([e.id, e.name || "", e.current, e.previous, e.delta, e.pct ?? ""]);
+  }
+  return rows.map(r => r.map(csvEscape).join(",")).join("\n");
+}
+export function toCsvTrendsTop(trends) {
+  const rows = [["userId", "displayName", "current", "previous", "delta", "pct", "topChannel"]];
+  for (const e of (trends.authors || [])) {
+    rows.push([e.userId, e.displayName || "", e.current, e.previous, e.delta, e.pct ?? "", e.topChannelName || ""]);
+  }
+  return rows.map(r => r.map(csvEscape).join(",")).join("\n");
 }
 
 export function toCsvChannels(stats) {
@@ -293,37 +281,6 @@ export function toCsvTop(stats) {
       entry.userId,
       entry.displayName || "",
       entry.messageCount,
-      entry.topChannelName || ""
-    ]);
-  }
-  return rows.map(row => row.map(csvEscape).join(",")).join("\n");
-}
-
-export function toCsvTrendsChannels(trends) {
-  const rows = [["channelId", "channelName", "current", "previous", "delta", "pct"]];
-  for (const entry of trends.channels) {
-    rows.push([
-      entry.id,
-      entry.name || "",
-      entry.current,
-      entry.previous,
-      entry.delta,
-      entry.pct ?? ""
-    ]);
-  }
-  return rows.map(row => row.map(csvEscape).join(",")).join("\n");
-}
-
-export function toCsvTrendsTop(trends) {
-  const rows = [["userId", "displayName", "current", "previous", "delta", "pct", "topChannel"]];
-  for (const entry of trends.authors) {
-    rows.push([
-      entry.userId,
-      entry.displayName || "",
-      entry.current,
-      entry.previous,
-      entry.delta,
-      entry.pct ?? "",
       entry.topChannelName || ""
     ]);
   }

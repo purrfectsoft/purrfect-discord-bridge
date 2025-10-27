@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { getOpenAI, getModel, redactSafe } from "./lib/ai.js";
 
 // lightweight formatter (no luxon)
 const tz = process.env.TIMEZONE || "Asia/Dhaka";
@@ -66,14 +66,17 @@ export async function summarizeMessages({ messages, model, hours, tz: tzOverride
     `${content}\n\n` +
     `Remember: do not invent projects/owners/dates. Use 'Miscellaneous' if needed.`;
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const client = getOpenAI();
+  if (!client) {
+    return "OpenAI not configured. Unable to generate summary.";
+  }
 
-  const resp = await openai.chat.completions.create({
-    model: model || process.env.OPENAI_MODEL || "gpt-4o-mini",
+  const resp = await client.chat.completions.create({
+    model: model || getModel("summary"),
     temperature: 0, // deterministic & reduces hallucinations
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
+      { role: "user", content: redactSafe(userPrompt) },
     ],
   });
 
