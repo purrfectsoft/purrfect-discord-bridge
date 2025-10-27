@@ -45,9 +45,11 @@ const commands = [
         { name: "Channels", value: "channels" },
         { name: "Roles", value: "roles" },
         { name: "Members", value: "members" },
-        { name: "Top contributors", value: "top" }
+        { name: "Top contributors", value: "top" },
+        { name: "Trends", value: "trends" }
       ))
     .addIntegerOption(o => o.setName("limit").setDescription("Max rows in detailed views").setMinValue(1).setMaxValue(50))
+    .addBooleanOption(o => o.setName("insight").setDescription("Ask AI to summarize the trends"))
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);

@@ -13,8 +13,19 @@ import { ensureNotesDir, addNote, getNotesBetween } from "./notes.js";
 import { getHappenings } from "./happenings.js";
 import { startServer } from "./server.js";
 import { guildToTree } from "./lib/guild_map.js";
-import { toMarkdownMap, toJsonMap, toCsvMap, buildStatsEmbeds, toCsvChannels, toCsvTop } from "./lib/formatters.js";
-import { collectStats } from "./lib/stats.js";
+import {
+  toMarkdownMap,
+  toJsonMap,
+  toCsvMap,
+  buildStatsEmbeds,
+  toCsvChannels,
+  toCsvTop,
+  buildTrendsEmbeds,
+  toCsvTrendsChannels,
+  toCsvTrendsTop
+} from "./lib/formatters.js";
+import { collectStats, collectTrends } from "./lib/stats.js";
+import { buildAIOpinion } from "./lib/insight.js";
 
 // ──────────────────────────────────────────────────────────────
 // Core config
@@ -396,6 +407,7 @@ client.on("interactionCreate", async (interaction) => {
     const detail = interaction.options.getString("detail") || "summary";
     const limitOption = interaction.options.getInteger("limit");
     const limit = Math.min(Math.max(limitOption ?? 10, 1), 50);
+    const insight = interaction.options.getBoolean("insight") ?? false;
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -417,11 +429,66 @@ client.on("interactionCreate", async (interaction) => {
         break;
     }
 
+    const allowedChannelIds = Array.from(allowed);
+    if (!allowedChannelIds.length) {
+      await interaction.editReply({ content: "No allowlisted channels configured for activity analysis." });
+      return;
+    }
+
     const stats = await collectStats(interaction.guild, {
       since,
       until: now,
-      allowedChannelIds: Array.from(allowed)
+      allowedChannelIds
     });
+
+    if (detail === "trends") {
+      const trends = await collectTrends(interaction.guild, {
+        since,
+        until: now,
+        allowedChannelIds
+      });
+
+      const embeds = buildTrendsEmbeds(interaction.guild, trends, { limit });
+      const files = [];
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+      const channelsCsv = toCsvTrendsChannels(trends);
+      if (channelsCsv) {
+        files.push(new AttachmentBuilder(Buffer.from(channelsCsv, "utf8"), { name: `trends_channels_${timestamp}.csv` }));
+      }
+      const authorsCsv = toCsvTrendsTop(trends);
+      if (authorsCsv) {
+        files.push(new AttachmentBuilder(Buffer.from(authorsCsv, "utf8"), { name: `trends_top_${timestamp}.csv` }));
+      }
+
+      if (insight) {
+        try {
+          const opinion = await buildAIOpinion({
+            guildName: interaction.guild.name,
+            range: `${fmt(since)} → ${fmt(now)}`,
+            totals: trends.totals,
+            channels: trends.channels,
+            authors: trends.authors
+          });
+          if (opinion) {
+            const trimmed = opinion.slice(0, 1800);
+            embeds.push(new EmbedBuilder().setTitle("AI Insight").setDescription(trimmed).setTimestamp(new Date(trends.until)));
+          }
+        } catch (err) {
+          logError("stats:insight", err);
+          embeds.push(new EmbedBuilder().setTitle("AI Insight").setDescription("Unable to generate insight at this time."));
+        }
+      }
+
+      const reply = { embeds };
+      if (files.length) {
+        reply.files = files;
+        reply.content = "Attached CSV exports for trends view.";
+      }
+
+      await interaction.editReply(reply);
+      return;
+    }
 
     const embeds = buildStatsEmbeds(interaction.guild, stats, { detail, limit });
     const files = [];
