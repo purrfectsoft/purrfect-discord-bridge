@@ -2,7 +2,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { Client, GatewayIntentBits, Partials, ChannelType, EmbedBuilder } from "discord.js";
+import { Client, GatewayIntentBits, Partials, ChannelType, EmbedBuilder, AttachmentBuilder, PermissionFlagsBits } from "discord.js";
 import { CronJob } from "cron";
 
 import { summarizeMessages } from "./summarizer.js";
@@ -12,6 +12,9 @@ import { windowHoursEnd } from "./utils/time.js";
 import { ensureNotesDir, addNote, getNotesBetween } from "./notes.js";
 import { getHappenings } from "./happenings.js";
 import { startServer } from "./server.js";
+import { guildToTree } from "./lib/guild_map.js";
+import { toMarkdownMap, toJsonMap, toCsvMap, buildStatsEmbeds, toCsvChannels, toCsvTop } from "./lib/formatters.js";
+import { collectStats } from "./lib/stats.js";
 
 // ──────────────────────────────────────────────────────────────
 // Core config
@@ -346,6 +349,101 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     return deliverInteractionText(interaction, result.content);
+  }
+
+  if (name === "map") {
+    const format = (interaction.options.getString("format") || "markdown").toLowerCase();
+    const includePerms = interaction.options.getBoolean("include_permissions") ?? false;
+    const includePrivateOption = interaction.options.getBoolean("include_private") ?? false;
+    const categoryFilterRaw = interaction.options.getString("category");
+    const categoryFilter = categoryFilterRaw ? categoryFilterRaw.trim() : null;
+    const maxChannelsOption = interaction.options.getInteger("max_channels");
+    const safeMax = Math.min(Math.max(maxChannelsOption ?? 300, 1), 1000);
+    const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+    const allowPrivate = Boolean(includePrivateOption && isAdmin);
+
+    await interaction.deferReply({ ephemeral: !allowPrivate });
+
+    const tree = await guildToTree(interaction.guild, {
+      allowPrivate,
+      includePerms,
+      categoryFilter,
+      maxChannels: safeMax
+    }, interaction.member);
+
+    if (format === "json") {
+      const content = toJsonMap(tree);
+      const attachment = new AttachmentBuilder(Buffer.from(content, "utf8"), { name: "server_map.json" });
+      return interaction.editReply({ content: "Server map (JSON) attached.", files: [attachment] });
+    }
+
+    if (format === "csv") {
+      const content = toCsvMap(tree);
+      const attachment = new AttachmentBuilder(Buffer.from(content, "utf8"), { name: "server_map.csv" });
+      return interaction.editReply({ content: "Server map (CSV) attached.", files: [attachment] });
+    }
+
+    const markdown = toMarkdownMap(interaction.guild, tree);
+    if (markdown.length > 1900) {
+      const attachment = new AttachmentBuilder(Buffer.from(markdown, "utf8"), { name: "server_map.md" });
+      return interaction.editReply({ content: "Server map attached as markdown file.", files: [attachment] });
+    }
+    return deliverInteractionText(interaction, markdown);
+  }
+
+  if (name === "stats") {
+    const range = interaction.options.getString("range") || "30d";
+    const detail = interaction.options.getString("detail") || "summary";
+    const limitOption = interaction.options.getInteger("limit");
+    const limit = Math.min(Math.max(limitOption ?? 10, 1), 50);
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const now = new Date();
+    let since;
+    switch (range) {
+      case "7d":
+        since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "30d":
+        since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case "90d":
+        since = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case "all":
+      default:
+        since = new Date(0);
+        break;
+    }
+
+    const stats = await collectStats(interaction.guild, {
+      since,
+      until: now,
+      allowedChannelIds: Array.from(allowed)
+    });
+
+    const embeds = buildStatsEmbeds(interaction.guild, stats, { detail, limit });
+    const files = [];
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    if (detail === "channels") {
+      const csv = toCsvChannels(stats);
+      files.push(new AttachmentBuilder(Buffer.from(csv, "utf8"), { name: `stats_channels_${timestamp}.csv` }));
+    }
+    if (detail === "top") {
+      const csv = toCsvTop(stats);
+      files.push(new AttachmentBuilder(Buffer.from(csv, "utf8"), { name: `stats_top_${timestamp}.csv` }));
+    }
+
+    const reply = { embeds };
+    if (files.length) {
+      reply.files = files;
+      reply.content = `Attached CSV export for ${detail} view.`;
+    }
+
+    await interaction.editReply(reply);
+    return;
   }
 
   if (name === "backfill") {
