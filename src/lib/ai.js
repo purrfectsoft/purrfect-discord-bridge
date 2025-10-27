@@ -9,7 +9,15 @@ export function getOpenAI() {
   if (_client) return _client;
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null; // graceful: callers should skip AI features
-  _client = new OpenAI({ apiKey });
+  try {
+    _client = new OpenAI({ apiKey });
+  } catch (err) {
+    _client = null;
+    if (process.env.NODE_ENV !== "test") {
+      console.warn("OpenAI client unavailable:", err?.message || err);
+    }
+    return null;
+  }
   return _client;
 }
 
