@@ -1,13 +1,14 @@
-import OpenAI from "openai";
-import { redact } from "../redact.js";
-
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// src/lib/insight.js
+import { getOpenAI, getModel, redactSafe } from "./ai.js";
 
 /**
- * Build a short, leadership-friendly interpretation (120–180 words).
- * Only use the provided numbers; do not invent data.
+ * Build a short leadership-friendly interpretation (120–180 words).
+ * Uses only provided numbers. Returns "" when AI is unavailable.
  */
 export async function buildAIOpinion({ guildName, range, totals, channels, authors }) {
+  const client = getOpenAI();
+  if (!client) return ""; // no OPENAI_API_KEY → skip insight
+
   const prompt = [
     "You are an analyst for a humane, transparent company community on Discord.",
     "Summarize trends succinctly for leadership (120–180 words).",
@@ -22,10 +23,10 @@ export async function buildAIOpinion({ guildName, range, totals, channels, autho
   ].join("\n");
 
   const res = await client.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    model: getModel("insight"),
     messages: [
       { role: "system", content: "You write concise, quantitative ops summaries." },
-      { role: "user", content: redact(prompt) }
+      { role: "user", content: redactSafe(prompt) }
     ],
     temperature: 0.3,
     max_tokens: 300

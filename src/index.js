@@ -51,9 +51,9 @@ const statusState = {
 };
 function logError(context, err) {
   const msg = `${context}: ${err?.message || String(err)}`;
-  statusState.errors.push(msg);
-  if (statusState.errors.length > 200) statusState.errors = statusState.errors.slice(-200);
   console.error(msg);
+  statusState.errors.push({ t: Date.now(), msg });
+  if (statusState.errors.length > 200) statusState.errors = statusState.errors.slice(-200);
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -435,31 +435,16 @@ client.on("interactionCreate", async (interaction) => {
       return;
     }
 
-    const stats = await collectStats(interaction.guild, {
-      since,
-      until: now,
-      allowedChannelIds
-    });
-
     if (detail === "trends") {
-      const trends = await collectTrends(interaction.guild, {
-        since,
-        until: now,
-        allowedChannelIds
-      });
-
+      const trends = await collectTrends(interaction.guild, { since, until: now, allowedChannelIds });
       const embeds = buildTrendsEmbeds(interaction.guild, trends, { limit });
       const files = [];
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
-      const channelsCsv = toCsvTrendsChannels(trends);
-      if (channelsCsv) {
-        files.push(new AttachmentBuilder(Buffer.from(channelsCsv, "utf8"), { name: `trends_channels_${timestamp}.csv` }));
-      }
-      const authorsCsv = toCsvTrendsTop(trends);
-      if (authorsCsv) {
-        files.push(new AttachmentBuilder(Buffer.from(authorsCsv, "utf8"), { name: `trends_top_${timestamp}.csv` }));
-      }
+      const csvCh = toCsvTrendsChannels(trends);
+      if (csvCh) files.push(new AttachmentBuilder(Buffer.from(csvCh, "utf8"), { name: `trends_channels_${timestamp}.csv` }));
+      const csvTop = toCsvTrendsTop(trends);
+      if (csvTop) files.push(new AttachmentBuilder(Buffer.from(csvTop, "utf8"), { name: `trends_top_${timestamp}.csv` }));
 
       if (insight) {
         try {
@@ -471,8 +456,7 @@ client.on("interactionCreate", async (interaction) => {
             authors: trends.authors
           });
           if (opinion) {
-            const trimmed = opinion.slice(0, 1800);
-            embeds.push(new EmbedBuilder().setTitle("AI Insight").setDescription(trimmed).setTimestamp(new Date(trends.until)));
+            embeds.push(new EmbedBuilder().setTitle("AI Insight").setDescription(opinion.slice(0, 1800)).setTimestamp(new Date(trends.until)));
           }
         } catch (err) {
           logError("stats:insight", err);
@@ -480,15 +464,16 @@ client.on("interactionCreate", async (interaction) => {
         }
       }
 
-      const reply = { embeds };
-      if (files.length) {
-        reply.files = files;
-        reply.content = "Attached CSV exports for trends view.";
-      }
-
+      const reply = files.length ? { content: "Attached CSV exports for trends view.", embeds, files } : { embeds };
       await interaction.editReply(reply);
       return;
     }
+
+    const stats = await collectStats(interaction.guild, {
+      since,
+      until: now,
+      allowedChannelIds
+    });
 
     const embeds = buildStatsEmbeds(interaction.guild, stats, { detail, limit });
     const files = [];
