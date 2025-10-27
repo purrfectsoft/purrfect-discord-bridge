@@ -132,6 +132,32 @@ function splitFields(lines) {
   return chunks;
 }
 
+const signedNumberFormatter = new Intl.NumberFormat("en-GB", {
+  signDisplay: "always",
+  maximumFractionDigits: 0
+});
+
+const pctFormatter = new Intl.NumberFormat("en-GB", {
+  signDisplay: "always",
+  maximumFractionDigits: 1,
+  minimumFractionDigits: 0
+});
+
+function formatSignedNumber(value) {
+  if (!Number.isFinite(value)) {
+    return value > 0 ? "+∞" : value < 0 ? "-∞" : "0";
+  }
+  if (value === 0) return "0";
+  return signedNumberFormatter.format(value);
+}
+
+function formatPctValue(value) {
+  if (value === null || value === undefined) return "n/a";
+  if (!Number.isFinite(value)) return value > 0 ? "+∞%" : value < 0 ? "-∞%" : "0%";
+  if (value === 0) return "0%";
+  return `${pctFormatter.format(value)}%`;
+}
+
 export function buildStatsEmbeds(guild, stats, { detail = "summary", limit = 10 } = {}) {
   const embeds = [];
   const rangeLine = `${formatDate(stats.since)} → ${formatDate(stats.until)}`;
@@ -206,6 +232,46 @@ export function buildStatsEmbeds(guild, stats, { detail = "summary", limit = 10 
   return embeds;
 }
 
+export function buildTrendsEmbeds(guild, trends, { limit = 10 } = {}) {
+  const rangeDescription = `Prev: ${formatDate(trends.prevSince)} → ${formatDate(trends.prevUntil)}\nCurr: ${formatDate(trends.since)} → ${formatDate(trends.until)}`;
+  const baseEmbed = new EmbedBuilder()
+    .setTitle(`Trends – ${guild.name}`)
+    .setDescription(rangeDescription)
+    .setTimestamp(new Date(trends.until));
+
+  if (trends.notes?.length) {
+    baseEmbed.setFooter({ text: trends.notes.join(" | ") });
+  }
+
+  const totalsLines = [
+    `Messages: ${formatNumber(trends.totals.messages.current)} (Δ ${formatSignedNumber(trends.totals.messages.delta)} / ${formatPctValue(trends.totals.messages.pct)})`,
+    `Unique authors: ${formatNumber(trends.totals.uniqueAuthors.current)} (Δ ${formatSignedNumber(trends.totals.uniqueAuthors.delta)} / ${formatPctValue(trends.totals.uniqueAuthors.pct)})`,
+    `Channels tracked: ${formatNumber(trends.totals.channelsTracked.current)} (Δ ${formatSignedNumber(trends.totals.channelsTracked.delta)} / ${formatPctValue(trends.totals.channelsTracked.pct)})`
+  ];
+  baseEmbed.addFields({ name: "Totals", value: totalsLines.join("\n"), inline: true });
+
+  const channelLines = trends.channels
+    .slice(0, Math.max(limit, 0))
+    .map(entry => {
+      const name = entry.name ? `#${entry.name}` : entry.id;
+      return `${name}: ${formatSignedNumber(entry.delta)} (${formatPctValue(entry.pct)})`;
+    });
+  const channelChunks = splitFields(channelLines.length ? channelLines : ["No channel movers found in this range."]);
+  channelChunks.forEach((chunk, idx) => {
+    baseEmbed.addFields({ name: idx === 0 ? "Top channel movers" : EMPTY_FIELD, value: chunk });
+  });
+
+  const authorLines = trends.authors
+    .slice(0, Math.max(limit, 0))
+    .map(entry => `${entry.displayName || entry.userId}: ${formatSignedNumber(entry.delta)} (${formatPctValue(entry.pct)})`);
+  const authorChunks = splitFields(authorLines.length ? authorLines : ["No contributor movers found in this range."]);
+  authorChunks.forEach((chunk, idx) => {
+    baseEmbed.addFields({ name: idx === 0 ? "Top contributor movers" : EMPTY_FIELD, value: chunk });
+  });
+
+  return [baseEmbed];
+}
+
 export function toCsvChannels(stats) {
   const rows = [["channelId", "channelName", "messageCount", "uniqueAuthors", "lastMessageAt"]];
   for (const entry of stats.channels) {
@@ -227,6 +293,37 @@ export function toCsvTop(stats) {
       entry.userId,
       entry.displayName || "",
       entry.messageCount,
+      entry.topChannelName || ""
+    ]);
+  }
+  return rows.map(row => row.map(csvEscape).join(",")).join("\n");
+}
+
+export function toCsvTrendsChannels(trends) {
+  const rows = [["channelId", "channelName", "current", "previous", "delta", "pct"]];
+  for (const entry of trends.channels) {
+    rows.push([
+      entry.id,
+      entry.name || "",
+      entry.current,
+      entry.previous,
+      entry.delta,
+      entry.pct ?? ""
+    ]);
+  }
+  return rows.map(row => row.map(csvEscape).join(",")).join("\n");
+}
+
+export function toCsvTrendsTop(trends) {
+  const rows = [["userId", "displayName", "current", "previous", "delta", "pct", "topChannel"]];
+  for (const entry of trends.authors) {
+    rows.push([
+      entry.userId,
+      entry.displayName || "",
+      entry.current,
+      entry.previous,
+      entry.delta,
+      entry.pct ?? "",
       entry.topChannelName || ""
     ]);
   }

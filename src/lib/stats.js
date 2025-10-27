@@ -198,3 +198,143 @@ export async function collectStats(guild, {
     notes
   };
 }
+
+function safePct(current, previous) {
+  if (previous === 0) {
+    if (current === 0) return 0;
+    return null;
+  }
+  const delta = current - previous;
+  return (delta / previous) * 100;
+}
+
+function buildDelta(current, previous) {
+  return {
+    current,
+    previous,
+    delta: current - previous,
+    pct: safePct(current, previous)
+  };
+}
+
+function indexById(list, key) {
+  const map = new Map();
+  for (const entry of list || []) {
+    if (!entry || entry[key] === undefined || entry[key] === null) continue;
+    map.set(entry[key], entry);
+  }
+  return map;
+}
+
+export async function collectTrends(guild, {
+  since,
+  until,
+  allowedChannelIds = [],
+  maxList = 100
+} = {}) {
+  const sinceDate = ensureDate(since, new Date(0));
+  const untilDate = ensureDate(until, new Date());
+  const sinceMs = sinceDate.getTime();
+  const untilMs = untilDate.getTime();
+  const duration = Math.max(untilMs - sinceMs, 0);
+
+  let prevUntilMs = sinceMs - 1;
+  if (prevUntilMs < 0) prevUntilMs = 0;
+  let prevSinceMs = prevUntilMs - duration;
+  if (prevSinceMs < 0) prevSinceMs = 0;
+
+  const prevSinceDate = new Date(prevSinceMs);
+  const prevUntilDate = new Date(prevUntilMs);
+
+  const current = await collectStats(guild, {
+    since: sinceDate,
+    until: untilDate,
+    allowedChannelIds
+  });
+
+  const previous = await collectStats(guild, {
+    since: prevSinceDate,
+    until: prevUntilDate,
+    allowedChannelIds
+  });
+
+  const totals = {
+    messages: buildDelta(current.summary.activity.messages, previous.summary.activity.messages),
+    uniqueAuthors: buildDelta(current.summary.activity.uniqueAuthors, previous.summary.activity.uniqueAuthors),
+    channelsTracked: buildDelta(current.summary.activity.channelsTracked, previous.summary.activity.channelsTracked)
+  };
+
+  const currentChannels = indexById(current.channels, "id");
+  const previousChannels = indexById(previous.channels, "id");
+  const channelIds = new Set([...currentChannels.keys(), ...previousChannels.keys()]);
+  const channels = [];
+  for (const channelId of channelIds) {
+    const curr = currentChannels.get(channelId);
+    const prev = previousChannels.get(channelId);
+    const currentCount = curr?.messageCount ?? 0;
+    const previousCount = prev?.messageCount ?? 0;
+    if (currentCount === 0 && previousCount === 0) continue;
+    channels.push({
+      id: channelId,
+      name: curr?.name || prev?.name || channelId,
+      current: currentCount,
+      previous: previousCount,
+      delta: currentCount - previousCount,
+      pct: safePct(currentCount, previousCount)
+    });
+  }
+  channels.sort((a, b) => {
+    const diff = Math.abs(b.delta) - Math.abs(a.delta);
+    if (diff !== 0) return diff;
+    return (a.name || "").localeCompare(b.name || "");
+  });
+  const limitedChannels = channels.slice(0, Math.max(0, Math.min(maxList, channels.length)));
+
+  const currentAuthors = indexById(current.topAuthors, "userId");
+  const previousAuthors = indexById(previous.topAuthors, "userId");
+  const authorIds = new Set([...currentAuthors.keys(), ...previousAuthors.keys()]);
+  const authors = [];
+  for (const authorId of authorIds) {
+    const curr = currentAuthors.get(authorId);
+    const prev = previousAuthors.get(authorId);
+    const currentCount = curr?.messageCount ?? 0;
+    const previousCount = prev?.messageCount ?? 0;
+    if (currentCount === 0 && previousCount === 0) continue;
+    authors.push({
+      userId: authorId,
+      displayName: curr?.displayName || prev?.displayName || authorId,
+      current: currentCount,
+      previous: previousCount,
+      delta: currentCount - previousCount,
+      pct: safePct(currentCount, previousCount),
+      topChannelName: curr?.topChannelName || prev?.topChannelName || undefined
+    });
+  }
+  authors.sort((a, b) => {
+    const diff = Math.abs(b.delta) - Math.abs(a.delta);
+    if (diff !== 0) return diff;
+    return (a.displayName || "").localeCompare(b.displayName || "");
+  });
+  const limitedAuthors = authors.slice(0, Math.max(0, Math.min(maxList, authors.length)));
+
+  const notes = new Set();
+  for (const note of current.notes || []) notes.add(note);
+  for (const note of previous.notes || []) notes.add(note);
+  if (previous.notes?.some(n => /no stored logs/i.test(n))) {
+    notes.add("Partial data: previous window not fully logged.");
+  }
+  if (prevUntilMs === 0 && sinceMs === 0) {
+    notes.add("Previous window unavailable for 'all' range.");
+  }
+
+  return {
+    since: sinceDate.toISOString(),
+    until: untilDate.toISOString(),
+    prevSince: prevSinceDate.toISOString(),
+    prevUntil: prevUntilDate.toISOString(),
+    totals,
+    channels: limitedChannels,
+    authors: limitedAuthors,
+    notes: Array.from(notes)
+  };
+}
