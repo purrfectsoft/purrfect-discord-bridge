@@ -3,18 +3,24 @@ import OpenAI from "openai";
 import { redact } from "../redact.js";
 
 let _client = null;
+let _clientWarned = false;
 
 /** Lazy singleton OpenAI client. Returns null when OPENAI_API_KEY is missing. */
 export function getOpenAI() {
   if (_client) return _client;
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null; // graceful: callers should skip AI features
+  const apiKey = (process.env.OPENAI_API_KEY || "").trim();
+  if (!apiKey) {
+    _clientWarned = false; // reset so we warn once after a key appears but fails
+    return null; // graceful: callers should skip AI features
+  }
   try {
     _client = new OpenAI({ apiKey });
+    _clientWarned = false;
   } catch (err) {
     _client = null;
-    if (process.env.NODE_ENV !== "test") {
+    if (!_clientWarned && process.env.NODE_ENV !== "test") {
       console.warn("OpenAI client unavailable:", err?.message || err);
+      _clientWarned = true;
     }
     return null;
   }
